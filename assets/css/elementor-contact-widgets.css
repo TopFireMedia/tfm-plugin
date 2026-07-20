@@ -1,0 +1,193 @@
+/**
+ * TFM Elementor Contact Widgets Styles
+ * Following Elementor's button widget pattern for icon + text layouts
+ */
+
+/* Phone Widget */
+.tfm-phone-wrapper {
+    display: block;
+    width: 100%;
+}
+
+.tfm-phone-content-wrapper {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.tfm-phone-link {
+    color: inherit;
+}
+
+.tfm-phone-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.tfm-phone-icon i,
+.tfm-phone-icon svg {
+    line-height: 1;
+    vertical-align: middle;
+    display: block;
+}
+
+.tfm-phone-text {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+/* Email Widget */
+.tfm-email-wrapper {
+    display: block;
+    width: 100%;
+}
+
+.tfm-email-content-wrapper {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.tfm-email-link {
+    color: inherit;
+}
+
+.tfm-email-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.tfm-email-icon i,
+.tfm-email-icon svg {
+    line-height: 1;
+    vertical-align: middle;
+    display: block;
+}
+
+.tfm-email-text {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+/* Link Hover States */
+.tfm-phone-link,
+.tfm-email-link {
+    transition: opacity 0.3s;
+}
+
+.tfm-phone-link:hover,
+.tfm-email-link:hover {
+    opacity: 0.8;
+}
+
+/* News Widget */
+.tfm-news-widget {
+    width: 100%;
+}
+
+.tfm-news-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.tfm-news-card {
+    min-width: 0;
+}
+
+.tfm-news-card-link {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    text-decoration: none;
+    color: inherit;
+    background: #fff;
+}
+
+.tfm-news-image-wrap {
+    position: relative;
+    width: 100%;
+    padding-top: var(--tfm-news-image-ratio, 56.25%);
+    overflow: hidden;
+}
+
+.tfm-news-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tfm-news-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
+
+.tfm-news-meta {
+    font-size: 13px;
+    line-height: 1.4;
+    opacity: 0.85;
+}
+
+.tfm-news-title {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.25;
+}
+
+.tfm-news-excerpt {
+    line-height: 1.6;
+}
+
+.tfm-news-read-more {
+    margin-top: auto;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 600;
+}
+
+.tfm-news-pagination {
+    margin-top: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tfm-news-pagination .page-numbers {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border: 1px solid #d0d5dd;
+    text-decoration: none;
+}
+
+.tfm-news-pagination .page-numbers.current {
+    font-weight: 700;
+}
+
+@media (max-width: 1024px) {
+    .tfm-news-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767px) {
+    .tfm-news-grid {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+}
