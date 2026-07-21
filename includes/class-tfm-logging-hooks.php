@@ -137,6 +137,11 @@ class TFM_Logging_Hooks {
     }
 
     public function log_user_role_changed($user_id, $new_role, $old_roles) {
+        // set_user_role also fires while creating a user (empty previous roles).
+        // That's a registration, not a role change — user_register covers it.
+        if (empty($old_roles)) {
+            return;
+        }
         $user = get_user_by('id', $user_id);
         $this->log_action('user_role_changed', [
             'user_id'    => $user_id,
@@ -261,6 +266,11 @@ class TFM_Logging_Hooks {
         }
         $ignore_types = ['revision', 'nav_menu_item', 'customize_changeset', 'oembed_cache', 'attachment'];
         if (in_array($post->post_type, $ignore_types, true)) {
+            return;
+        }
+        // Skip auto-draft/placeholder rows that WordPress garbage-collects via
+        // cron — those aren't real user deletions.
+        if (in_array($post->post_status, ['auto-draft', 'inherit'], true)) {
             return;
         }
         $this->log_action('post_deleted', [

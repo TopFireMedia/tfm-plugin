@@ -409,7 +409,9 @@ function tfm_maybe_run_upgrades() {
 
     update_option('tfm_plugin_db_version', TFM_PLUGIN_VERSION);
 }
-add_action('admin_init', 'tfm_maybe_run_upgrades');
+// Run on 'init' (fires on front-end, admin, and cron) so logging is enabled on
+// the very first request after the update, not only when an admin visits wp-admin.
+add_action('init', 'tfm_maybe_run_upgrades');
 
 // Enqueue scripts conditionally
 function tfm_enqueue_scripts() {
