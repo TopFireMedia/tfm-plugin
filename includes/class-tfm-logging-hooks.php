@@ -20,17 +20,22 @@ class TFM_Logging_Hooks {
     }
 
     private function init_hooks() {
-        // User Actions
+        // Authentication
         add_action('wp_login', [$this, 'log_user_login'], 10, 2);
+        add_action('wp_login_failed', [$this, 'log_login_failed']);
         add_action('wp_logout', [$this, 'log_user_logout']);
+
+        // User account changes
         add_action('user_register', [$this, 'log_user_register']);
         add_action('profile_update', [$this, 'log_profile_update']);
+        add_action('set_user_role', [$this, 'log_user_role_changed'], 10, 3);
+        add_action('delete_user', [$this, 'log_user_deleted'], 10, 3);
 
-        // Content Actions
-        add_action('publish_post', [$this, 'log_post_published']);
-        add_action('publish_page', [$this, 'log_page_published']);
-        add_action('deleted_post', [$this, 'log_post_deleted']);
+        // Content — one status-transition handler covers ALL post types
+        // (publish/draft/pending/trash), skipping autosaves and revisions.
+        add_action('transition_post_status', [$this, 'log_post_transition'], 10, 3);
         add_action('post_updated', [$this, 'log_post_updated'], 10, 3);
+        add_action('before_delete_post', [$this, 'log_post_deleted']);
 
         // Media Actions
         add_action('add_attachment', [$this, 'log_media_uploaded']);
@@ -40,13 +45,12 @@ class TFM_Logging_Hooks {
         add_action('comment_post', [$this, 'log_comment_posted'], 10, 3);
         add_action('delete_comment', [$this, 'log_comment_deleted']);
 
-        // Plugin Actions
+        // Plugin / theme / core changes
         add_action('activated_plugin', [$this, 'log_plugin_activated']);
         add_action('deactivated_plugin', [$this, 'log_plugin_deactivated']);
-        add_action('delete_plugin', [$this, 'log_plugin_deleted']);
-
-        // Theme Actions
+        add_action('deleted_plugin', [$this, 'log_plugin_deleted'], 10, 2);
         add_action('switch_theme', [$this, 'log_theme_switched'], 10, 2);
+        add_action('upgrader_process_complete', [$this, 'log_upgrade_completed'], 10, 2);
 
         // Widget Actions
         add_action('widget_update_callback', [$this, 'log_widget_updated'], 10, 4);
@@ -54,8 +58,31 @@ class TFM_Logging_Hooks {
         // Menu Actions
         add_action('wp_update_nav_menu', [$this, 'log_menu_updated']);
 
-        // Option Changes
-        add_action('update_option', [$this, 'log_option_updated'], 10, 3);
+        // Security-relevant option changes only (allowlist inside the handler)
+        add_action('updated_option', [$this, 'log_option_updated'], 10, 3);
+    }
+
+    /**
+     * Options worth logging — site identity, membership/registration, active
+     * theme/plugins, permalinks, search-engine visibility. Everything else
+     * (transients, cron, caches, routine plugin data) is ignored, which is what
+     * keeps the log a signal instead of noise.
+     */
+    private function is_loggable_option($option_name) {
+        // Note: active_plugins / template / stylesheet are intentionally omitted —
+        // plugin and theme changes are captured more precisely by the dedicated
+        // activated_plugin / switch_theme / upgrader hooks, so logging the option
+        // too would double-record every toggle.
+        static $allowlist = [
+            'siteurl', 'home', 'blogname', 'admin_email', 'blogdescription',
+            'users_can_register', 'default_role', 'blog_public', 'permalink_structure',
+            'WPLANG', 'timezone_string', 'date_format', 'time_format',
+            'default_comment_status', 'require_name_email', 'comment_moderation',
+        ];
+
+        $allowlist = apply_filters('tfm_loggable_options', $allowlist);
+
+        return in_array($option_name, $allowlist, true);
     }
 
     private function log_action($action, $data = []) {
@@ -98,53 +125,149 @@ class TFM_Logging_Hooks {
         $user = get_user_by('id', $user_id);
         $this->log_action('user_profile_update', [
             'user_id' => $user_id,
-            'user_login' => $user->user_login,
-            'user_email' => $user->user_email
+            'user_login' => $user ? $user->user_login : '',
+            'user_email' => $user ? $user->user_email : ''
+        ]);
+    }
+
+    public function log_login_failed($username) {
+        $this->log_action('user_login_failed', [
+            'attempted_username' => $username,
+        ]);
+    }
+
+    public function log_user_role_changed($user_id, $new_role, $old_roles) {
+        $user = get_user_by('id', $user_id);
+        $this->log_action('user_role_changed', [
+            'user_id'    => $user_id,
+            'user_login' => $user ? $user->user_login : '',
+            'new_role'   => $new_role,
+            'old_roles'  => is_array($old_roles) ? implode(', ', $old_roles) : (string) $old_roles,
+        ]);
+    }
+
+    /** Fires on delete_user (before deletion) so the target's identity is captured. */
+    public function log_user_deleted($user_id, $reassign = null, $user = null) {
+        if (!$user instanceof WP_User) {
+            $user = get_user_by('id', $user_id);
+        }
+        $this->log_action('user_deleted', [
+            'user_id'       => $user_id,
+            'user_login'    => $user ? $user->user_login : '',
+            'user_email'    => $user ? $user->user_email : '',
+            'reassigned_to' => $reassign ? $reassign : 'none',
         ]);
     }
 
     // Content Actions
-    public function log_post_published($post_id) {
-        $post = get_post($post_id);
-        $this->log_action('post_published', [
-            'post_id' => $post_id,
-            'post_title' => $post->post_title,
-            'post_type' => $post->post_type,
-            'post_author' => $post->post_author,
-            'post_status' => $post->post_status
-        ]);
-    }
 
-    public function log_page_published($post_id) {
-        $post = get_post($post_id);
-        $this->log_action('page_published', [
-            'page_id' => $post_id,
-            'page_title' => $post->post_title,
-            'page_author' => $post->post_author,
-            'page_status' => $post->post_status
-        ]);
-    }
+    /**
+     * Single handler for all post-type status transitions (publish, trash,
+     * draft, pending…), for every post type. Skips revisions/autosaves and the
+     * auto-draft/placeholder churn so only real events are recorded.
+     */
+    public function log_post_transition($new_status, $old_status, $post) {
+        if (!$post instanceof WP_Post) {
+            return;
+        }
+        if (wp_is_post_revision($post) || wp_is_post_autosave($post)) {
+            return;
+        }
+        // Ignore internal/placeholder types and non-events.
+        $ignore_types = ['revision', 'nav_menu_item', 'customize_changeset', 'oembed_cache', 'attachment'];
+        if (in_array($post->post_type, $ignore_types, true)) {
+            return;
+        }
+        if (in_array($new_status, ['auto-draft', 'inherit'], true)) {
+            return;
+        }
 
-    public function log_post_deleted($post_id) {
-        $post = get_post($post_id);
-        if ($post) {
-            $this->log_action('post_deleted', [
-                'post_id' => $post_id,
+        // First publish is a distinct, notable event.
+        if ($new_status === 'publish' && $old_status !== 'publish') {
+            $this->log_action('post_published', [
+                'post_id'     => $post->ID,
+                'post_title'  => $post->post_title,
+                'post_type'   => $post->post_type,
+                'post_author' => $post->post_author,
+                'post_status' => $new_status,
+            ]);
+            return;
+        }
+
+        // Sent to trash.
+        if ($new_status === 'trash') {
+            $this->log_action('post_trashed', [
+                'post_id'    => $post->ID,
                 'post_title' => $post->post_title,
-                'post_type' => $post->post_type,
-                'post_author' => $post->post_author
+                'post_type'  => $post->post_type,
+            ]);
+            return;
+        }
+
+        // Any other real status change (e.g. published → draft, pending → publish).
+        if ($new_status !== $old_status) {
+            $this->log_action('post_status_changed', [
+                'post_id'    => $post->ID,
+                'post_title' => $post->post_title,
+                'post_type'  => $post->post_type,
+                'old_status' => $old_status,
+                'new_status' => $new_status,
             ]);
         }
     }
 
+    /**
+     * Content edits to an existing post where the STATUS did not change (status
+     * changes are handled by log_post_transition). Records which fields changed.
+     */
     public function log_post_updated($post_id, $post_after, $post_before) {
+        if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) {
+            return;
+        }
+        $ignore_types = ['revision', 'nav_menu_item', 'customize_changeset', 'oembed_cache', 'attachment'];
+        if (in_array($post_after->post_type, $ignore_types, true)) {
+            return;
+        }
+        // Status changes are logged by log_post_transition; only handle same-status edits.
+        if ($post_before->post_status !== $post_after->post_status) {
+            return;
+        }
+        if (in_array($post_after->post_status, ['auto-draft', 'inherit', 'trash'], true)) {
+            return;
+        }
+
+        $changed = [];
+        if ($post_before->post_title !== $post_after->post_title)     { $changed[] = 'title'; }
+        if ($post_before->post_content !== $post_after->post_content) { $changed[] = 'content'; }
+        if ($post_before->post_name !== $post_after->post_name)       { $changed[] = 'slug'; }
+        if (empty($changed)) {
+            return; // nothing user-visible changed
+        }
+
         $this->log_action('post_updated', [
-            'post_id' => $post_id,
-            'post_title' => $post_after->post_title,
-            'post_type' => $post_after->post_type,
+            'post_id'     => $post_id,
+            'post_title'  => $post_after->post_title,
+            'post_type'   => $post_after->post_type,
             'post_author' => $post_after->post_author,
-            'old_status' => $post_before->post_status,
-            'new_status' => $post_after->post_status
+            'changed'     => implode(', ', $changed),
+        ]);
+    }
+
+    /** Permanent deletion (fires on before_delete_post). */
+    public function log_post_deleted($post_id) {
+        $post = get_post($post_id);
+        if (!$post) {
+            return;
+        }
+        $ignore_types = ['revision', 'nav_menu_item', 'customize_changeset', 'oembed_cache', 'attachment'];
+        if (in_array($post->post_type, $ignore_types, true)) {
+            return;
+        }
+        $this->log_action('post_deleted', [
+            'post_id'     => $post_id,
+            'post_title'  => $post->post_title,
+            'post_type'   => $post->post_type,
+            'post_author' => $post->post_author,
         ]);
     }
 
@@ -209,10 +332,12 @@ class TFM_Logging_Hooks {
         ]);
     }
 
-    public function log_plugin_deleted($plugin) {
+    public function log_plugin_deleted($plugin_file, $deleted = true) {
+        if (!$deleted) {
+            return; // deletion attempt failed
+        }
         $this->log_action('plugin_deleted', [
-            'plugin' => $plugin,
-            'deleted_by' => get_current_user_id()
+            'plugin' => $plugin_file,
         ]);
     }
 
@@ -220,8 +345,45 @@ class TFM_Logging_Hooks {
     public function log_theme_switched($new_name, $new_theme) {
         $this->log_action('theme_switched', [
             'new_theme' => $new_name,
-            'theme_object' => $new_theme->get_stylesheet(),
-            'switched_by' => get_current_user_id()
+            'theme_object' => is_object($new_theme) ? $new_theme->get_stylesheet() : '',
+        ]);
+    }
+
+    /**
+     * Core / plugin / theme installs & updates (fires on upgrader_process_complete).
+     * $hook_extra describes what was upgraded and how.
+     */
+    public function log_upgrade_completed($upgrader, $hook_extra) {
+        if (!is_array($hook_extra) || empty($hook_extra['type'])) {
+            return;
+        }
+
+        $type   = $hook_extra['type'];   // plugin | theme | core
+        $action = $hook_extra['action'] ?? 'update';  // install | update
+
+        if ($type === 'core') {
+            $this->log_action('core_updated', [
+                'action' => $action,
+            ]);
+            return;
+        }
+
+        // Collect the affected items for plugin/theme (bulk or single).
+        $items = [];
+        if (!empty($hook_extra['plugins']) && is_array($hook_extra['plugins'])) {
+            $items = $hook_extra['plugins'];
+        } elseif (!empty($hook_extra['plugin'])) {
+            $items = [$hook_extra['plugin']];
+        } elseif (!empty($hook_extra['themes']) && is_array($hook_extra['themes'])) {
+            $items = $hook_extra['themes'];
+        } elseif (!empty($hook_extra['theme'])) {
+            $items = [$hook_extra['theme']];
+        }
+
+        $event = ($type === 'theme') ? 'theme_updated' : 'plugin_updated';
+        $this->log_action($event, [
+            'action' => $action,
+            'items'  => implode(', ', array_map('strval', $items)),
         ]);
     }
 
@@ -247,146 +409,20 @@ class TFM_Logging_Hooks {
         }
     }
 
-    // Option Changes
+    // Option Changes — only security-relevant options (see is_loggable_option).
     public function log_option_updated($option_name, $old_value, $value) {
-        // Skip logging if values are the same
+        if (!$this->is_loggable_option($option_name)) {
+            return;
+        }
         if ($old_value === $value) {
             return;
         }
 
-        $changes = $this->analyze_option_changes($option_name, $old_value, $value);
-        
-        if (!empty($changes)) {
-            $this->log_action('option_updated', [
-                'option_name' => $option_name,
-                'change_type' => $changes['type'],
-                'changes' => $changes['changes'],
-                'summary' => $changes['summary']
-            ]);
-        }
-    }
-
-    private function analyze_option_changes($option_name, $old_value, $new_value) {
-        // Handle Elementor assets data
-        if ($option_name === '_elementor_assets_data') {
-            return $this->analyze_elementor_assets_changes($old_value, $new_value);
-        }
-
-        // Handle other option types
-        if (is_array($old_value) && is_array($new_value)) {
-            return $this->analyze_array_changes($option_name, $old_value, $new_value);
-        }
-
-        // Default handling for simple values
-        return [
-            'type' => 'simple_update',
-            'changes' => [
-                'old_value' => $this->summarize_value($old_value),
-                'new_value' => $this->summarize_value($new_value)
-            ],
-            'summary' => sprintf('Updated %s from %s to %s', 
-                $option_name, 
-                $this->summarize_value($old_value), 
-                $this->summarize_value($new_value)
-            )
-        ];
-    }
-
-    private function analyze_elementor_assets_changes($old_value, $new_value) {
-        $changes = [
-            'added' => [],
-            'removed' => [],
-            'modified' => []
-        ];
-
-        // Compare SVG icons
-        if (isset($old_value['svg']['font-icon']) && isset($new_value['svg']['font-icon'])) {
-            $old_icons = $old_value['svg']['font-icon'];
-            $new_icons = $new_value['svg']['font-icon'];
-
-            // Find added and removed icons
-            foreach ($new_icons as $icon_name => $icon_data) {
-                if (!isset($old_icons[$icon_name])) {
-                    $changes['added'][] = $icon_name;
-                } elseif ($old_icons[$icon_name] !== $icon_data) {
-                    $changes['modified'][] = $icon_name;
-                }
-            }
-
-            foreach ($old_icons as $icon_name => $icon_data) {
-                if (!isset($new_icons[$icon_name])) {
-                    $changes['removed'][] = $icon_name;
-                }
-            }
-        }
-
-        // Generate summary
-        $summary_parts = [];
-        if (!empty($changes['added'])) {
-            $summary_parts[] = sprintf('Added %d icon(s): %s', 
-                count($changes['added']), 
-                implode(', ', $changes['added'])
-            );
-        }
-        if (!empty($changes['removed'])) {
-            $summary_parts[] = sprintf('Removed %d icon(s): %s', 
-                count($changes['removed']), 
-                implode(', ', $changes['removed'])
-            );
-        }
-        if (!empty($changes['modified'])) {
-            $summary_parts[] = sprintf('Modified %d icon(s): %s', 
-                count($changes['modified']), 
-                implode(', ', $changes['modified'])
-            );
-        }
-
-        return [
-            'type' => 'elementor_assets_update',
-            'changes' => $changes,
-            'summary' => implode('; ', $summary_parts)
-        ];
-    }
-
-    private function analyze_array_changes($option_name, $old_value, $new_value) {
-        $changes = [
-            'added' => [],
-            'removed' => [],
-            'modified' => []
-        ];
-
-        // Compare array keys
-        foreach ($new_value as $key => $value) {
-            if (!isset($old_value[$key])) {
-                $changes['added'][] = $key;
-            } elseif ($old_value[$key] !== $value) {
-                $changes['modified'][] = $key;
-            }
-        }
-
-        foreach ($old_value as $key => $value) {
-            if (!isset($new_value[$key])) {
-                $changes['removed'][] = $key;
-            }
-        }
-
-        // Generate summary
-        $summary_parts = [];
-        if (!empty($changes['added'])) {
-            $summary_parts[] = sprintf('Added: %s', implode(', ', $changes['added']));
-        }
-        if (!empty($changes['removed'])) {
-            $summary_parts[] = sprintf('Removed: %s', implode(', ', $changes['removed']));
-        }
-        if (!empty($changes['modified'])) {
-            $summary_parts[] = sprintf('Modified: %s', implode(', ', $changes['modified']));
-        }
-
-        return [
-            'type' => 'array_update',
-            'changes' => $changes,
-            'summary' => sprintf('Updated %s: %s', $option_name, implode('; ', $summary_parts))
-        ];
+        $this->log_action('option_updated', [
+            'option_name' => $option_name,
+            'old_value'   => $this->summarize_value($old_value),
+            'new_value'   => $this->summarize_value($value),
+        ]);
     }
 
     private function summarize_value($value) {

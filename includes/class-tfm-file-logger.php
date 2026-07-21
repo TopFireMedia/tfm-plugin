@@ -30,9 +30,9 @@ class TFM_File_Logger {
             $this->settings['log_retention_days'] = 30;
         }
         
-        // Ensure log_level is set
+        // Ensure log_level is set (default to logging everything for a full audit trail)
         if (!isset($this->settings['log_level'])) {
-            $this->settings['log_level'] = 'error';
+            $this->settings['log_level'] = 'all';
         }
         
         $upload_dir = wp_upload_dir();
@@ -104,6 +104,14 @@ class TFM_File_Logger {
             return false;
         }
 
+        // Severity is assigned per action and stored on the entry. Events below the
+        // configured log level are dropped here at write time (real filtering).
+        $severity = self::get_action_severity($action);
+        $configured_level = $this->settings['log_level'] ?? 'all';
+        if (self::severity_rank($severity) < self::level_threshold($configured_level)) {
+            return false;
+        }
+
         if (!is_dir($this->log_directory) || !is_writable($this->log_directory)) {
             $this->error_log[] = 'Log directory is not writable: ' . $this->log_directory;
             error_log('TFM Logger Error: Log directory is not writable: ' . $this->log_directory);
@@ -111,24 +119,22 @@ class TFM_File_Logger {
         }
 
         try {
-            $user = wp_get_current_user();
+            $actor = $this->get_actor();
             $ip = $this->get_client_ip();
 
             // Sanitize data
             $sanitized_data = $this->sanitize_log_data($data);
 
-            $user_display = ($user && $user->exists()) ? $user->display_name : '';
-            $user_email = ($user && $user->exists()) ? $user->user_email : '';
-            $user_role = ($user && !empty($user->roles)) ? $user->roles[0] : '';
-
             $log_entry = [
                 'timestamp' => current_time('mysql'),
                 'action' => sanitize_text_field($action),
-                'user_id' => absint($user->ID),
-                'user_login' => sanitize_user($user->user_login),
-                'user_display_name' => sanitize_text_field($user_display),
-                'user_email' => sanitize_email($user_email),
-                'user_role' => sanitize_text_field($user_role),
+                'severity' => $severity,
+                'user_id' => $actor['user_id'],
+                'user_login' => $actor['user_login'],
+                'user_display_name' => $actor['user_display_name'],
+                'user_email' => $actor['user_email'],
+                'user_role' => $actor['user_role'],
+                'context' => $actor['context'],
                 'ip_address' => sanitize_text_field($ip),
                 'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'),
                 'data' => $sanitized_data
@@ -166,6 +172,121 @@ class TFM_File_Logger {
                 });
             }
             return false;
+        }
+    }
+
+    /**
+     * Resolve who performed the action. When there's an authenticated user we
+     * record their identity; otherwise we record the real execution context
+     * (cron/wp-cli/rest/unauthenticated) instead of a blank "user 0", so an
+     * automated or API-driven change can still be attributed to a source.
+     *
+     * @return array{user_id:int,user_login:string,user_display_name:string,user_email:string,user_role:string,context:string}
+     */
+    private function get_actor() {
+        $user = wp_get_current_user();
+
+        if ($user && $user->exists()) {
+            return [
+                'user_id'           => absint($user->ID),
+                'user_login'        => sanitize_user($user->user_login),
+                'user_display_name' => sanitize_text_field($user->display_name),
+                'user_email'        => sanitize_email($user->user_email),
+                'user_role'         => !empty($user->roles) ? sanitize_text_field($user->roles[0]) : '',
+                'context'           => 'web',
+            ];
+        }
+
+        // No authenticated user — identify the source explicitly.
+        if (wp_doing_cron()) {
+            $context = 'cron';
+        } elseif (defined('WP_CLI') && WP_CLI) {
+            $context = 'wp-cli';
+        } elseif (defined('REST_REQUEST') && REST_REQUEST) {
+            $context = 'rest';
+        } else {
+            $context = 'unauthenticated';
+        }
+
+        return [
+            'user_id'           => 0,
+            'user_login'        => $context,
+            'user_display_name' => '',
+            'user_email'        => '',
+            'user_role'         => '',
+            'context'           => $context,
+        ];
+    }
+
+    /**
+     * Canonical severity for an action (single source of truth for both
+     * write-time filtering and the admin viewer's badge). Defaults to 'info'.
+     */
+    public static function get_action_severity($action) {
+        static $map = [
+            // Authentication
+            'user_login'          => 'success',
+            'user_login_failed'   => 'warning',
+            'user_logout'         => 'info',
+            // Users
+            'user_register'       => 'success',
+            'user_profile_update' => 'info',
+            'user_role_changed'   => 'danger',
+            'user_deleted'        => 'danger',
+            // Content
+            'post_published'      => 'success',
+            'page_published'      => 'success',
+            'post_status_changed' => 'info',
+            'post_updated'        => 'info',
+            'post_trashed'        => 'warning',
+            'post_deleted'        => 'danger',
+            // Media
+            'media_uploaded'      => 'info',
+            'media_deleted'       => 'warning',
+            // Comments
+            'comment_posted'      => 'info',
+            'comment_deleted'     => 'warning',
+            // Plugins / themes / core
+            'plugin_activated'    => 'warning',
+            'plugin_deactivated'  => 'warning',
+            'plugin_deleted'      => 'danger',
+            'plugin_updated'      => 'info',
+            'theme_switched'      => 'warning',
+            'theme_updated'       => 'info',
+            'core_updated'        => 'warning',
+            // Site structure
+            'widget_updated'      => 'info',
+            'menu_updated'        => 'info',
+            'option_updated'      => 'warning',
+        ];
+
+        return isset($map[$action]) ? $map[$action] : 'info';
+    }
+
+    /** Numeric rank for a severity string (higher = more important). */
+    private static function severity_rank($severity) {
+        switch ($severity) {
+            case 'danger':  return 3;
+            case 'warning': return 2;
+            case 'success':
+            case 'info':
+            default:        return 1;
+        }
+    }
+
+    /** Minimum severity rank that the configured log level will record. */
+    private static function level_threshold($level) {
+        switch ($level) {
+            case 'critical':
+            case 'error':    // legacy value
+                return 3;
+            case 'important':
+            case 'warning':  // legacy value
+                return 2;
+            case 'all':
+            case 'info':     // legacy value
+            default:
+                return 1;
         }
     }
 
