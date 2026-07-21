@@ -533,8 +533,9 @@ function tfm_defer_scripts($tag, $handle) {
 function tfm_allow_svg_uploads($mimes) {
     $settings = tfm_load_settings();
     if (!empty($settings['enable_svg_uploads']) && current_user_can('unfiltered_html')) {
-        $mimes['svg']  = 'image/svg+xml';
-        $mimes['svgz'] = 'image/svg+xml';
+        // Only plain .svg — .svgz (gzipped) can't be DOM-sanitized without
+        // gunzipping, so it's not accepted rather than shipped as a dead path.
+        $mimes['svg'] = 'image/svg+xml';
     }
     return $mimes;
 }
@@ -549,8 +550,8 @@ function tfm_fix_svg_filetype($data, $file, $filename, $mimes, $real_mime = '') 
         return $data;
     }
     $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    if ($ext === 'svg' || $ext === 'svgz') {
-        $data['ext']  = $ext;
+    if ($ext === 'svg') {
+        $data['ext']  = 'svg';
         $data['type'] = 'image/svg+xml';
     }
     return $data;
@@ -565,8 +566,10 @@ function tfm_sanitize_svg_on_upload($upload) {
     }
 
     $contents = file_get_contents($upload['file']);
+    // Fail closed: if we can't read it, we can't prove it's safe.
     if ($contents === false) {
-        return $upload;
+        @unlink($upload['file']);
+        return ['error' => __('This SVG could not be read for sanitization and was not uploaded.', 'topfiremedia')];
     }
 
     $clean = TFM_SVG_Sanitizer::sanitize($contents);
@@ -575,27 +578,39 @@ function tfm_sanitize_svg_on_upload($upload) {
         return ['error' => __('This SVG could not be processed safely and was not uploaded.', 'topfiremedia')];
     }
 
-    file_put_contents($upload['file'], $clean);
+    if (file_put_contents($upload['file'], $clean) === false) {
+        @unlink($upload['file']);
+        return ['error' => __('This SVG could not be saved safely and was not uploaded.', 'topfiremedia')];
+    }
     return $upload;
 }
 add_filter('wp_handle_upload', 'tfm_sanitize_svg_on_upload');
 add_filter('wp_handle_upload_prefilter', function ($file) {
     // Prefilter runs before the type is finalized; sanitize by extension here too.
-    if (!empty($file['name']) && preg_match('/\.svgz?$/i', $file['name']) && !empty($file['tmp_name'])) {
-        $settings = tfm_load_settings();
-        if (empty($settings['enable_svg_uploads']) || !current_user_can('unfiltered_html')) {
-            $file['error'] = __('SVG uploads are not permitted for your account.', 'topfiremedia');
-            return $file;
-        }
-        $contents = file_get_contents($file['tmp_name']);
-        if ($contents !== false) {
-            $clean = TFM_SVG_Sanitizer::sanitize($contents);
-            if ($clean === false) {
-                $file['error'] = __('This SVG could not be processed safely and was not uploaded.', 'topfiremedia');
-            } else {
-                file_put_contents($file['tmp_name'], $clean);
-            }
-        }
+    if (empty($file['name']) || !preg_match('/\.svg$/i', $file['name']) || empty($file['tmp_name'])) {
+        return $file;
+    }
+
+    $settings = tfm_load_settings();
+    if (empty($settings['enable_svg_uploads']) || !current_user_can('unfiltered_html')) {
+        $file['error'] = __('SVG uploads are not permitted for your account.', 'topfiremedia');
+        return $file;
+    }
+
+    $contents = file_get_contents($file['tmp_name']);
+    if ($contents === false) {
+        $file['error'] = __('This SVG could not be read for sanitization and was not uploaded.', 'topfiremedia');
+        return $file;
+    }
+
+    $clean = TFM_SVG_Sanitizer::sanitize($contents);
+    if ($clean === false) {
+        $file['error'] = __('This SVG could not be processed safely and was not uploaded.', 'topfiremedia');
+        return $file;
+    }
+
+    if (file_put_contents($file['tmp_name'], $clean) === false) {
+        $file['error'] = __('This SVG could not be saved safely and was not uploaded.', 'topfiremedia');
     }
     return $file;
 });

@@ -94,6 +94,9 @@ class TFM_SVG_Sanitizer {
                     continue;
                 }
                 self::clean_attributes($child);
+                if ($tag === 'style') {
+                    self::clean_style_element($child);
+                }
                 self::clean_node($child);
             } elseif ($child->nodeType === XML_COMMENT_NODE
                    || $child->nodeType === XML_PI_NODE
@@ -112,38 +115,62 @@ class TFM_SVG_Sanitizer {
         }
 
         foreach ($attributes as $attr) {
-            $name  = strtolower($attr->nodeName);
             $local = strtolower($attr->localName);
-            $value = $attr->nodeValue;
+            $value = (string) $attr->nodeValue;
 
-            // Any on* handler (onload, onclick, …).
-            if (strpos($name, 'on') === 0) {
+            // Any on* handler (onload, onclick, …), including namespaced variants
+            // like xlink:onload — match on the LOCAL name.
+            if (strpos($local, 'on') === 0) {
                 $node->removeAttributeNode($attr);
                 continue;
             }
 
-            // href / xlink:href / src: block script and non-image data URIs and
-            // external-resource loads.
+            // href / xlink:href / src: allow only local (#id) refs, same-origin
+            // relative paths, and safe raster data URIs. Reject external URLs,
+            // protocol-relative //, data:image/svg+xml, data:text, javascript:.
             if (in_array($local, ['href', 'src'], true)) {
-                $clean = strtolower(preg_replace('/[\s\x00-\x20]+/', '', (string) $value));
-                $is_data_image = strpos($clean, 'data:image/') === 0;
-                $is_local_ref  = strpos($clean, '#') === 0;
-                $is_relative   = ($clean !== '' && !preg_match('#^[a-z][a-z0-9+.-]*:#', $clean));
-                if (!$is_data_image && !$is_local_ref && !$is_relative) {
-                    $node->removeAttributeNode($attr);
-                    continue;
-                }
-                if (strpos($clean, 'javascript:') !== false || strpos($clean, 'data:text') !== false) {
+                $clean = strtolower(preg_replace('/[\s\x00-\x20]+/', '', $value));
+                $is_local_ref = strpos($clean, '#') === 0;
+                $is_safe_data = (bool) preg_match('#^data:image/(png|jpe?g|gif|webp|bmp);#', $clean);
+                $is_relative  = ($clean !== '' && strpos($clean, '//') !== 0 && !preg_match('#^[a-z][a-z0-9+.\-]*:#', $clean));
+                if (!$is_local_ref && !$is_safe_data && !$is_relative) {
                     $node->removeAttributeNode($attr);
                     continue;
                 }
             }
 
             // Any attribute value smuggling a javascript: URI.
-            if (stripos((string) $value, 'javascript:') !== false) {
+            if (stripos($value, 'javascript:') !== false) {
                 $node->removeAttributeNode($attr);
                 continue;
             }
+        }
+    }
+
+    /**
+     * Sanitize a <style> element's CSS: drop @import rules and any url() that
+     * references non-local targets, and neutralize expression()/javascript:.
+     * These don't execute script in modern browsers, but @import/external url()
+     * are a data-exfiltration / external-fetch vector from a file on our domain.
+     * Content is re-stored as CDATA so CSS (e.g. child combinators) isn't
+     * XML-entity-escaped.
+     */
+    private static function clean_style_element(DOMElement $style) {
+        $css = $style->textContent;
+
+        $css = preg_replace('/@import\b[^;]*;?/i', '', $css);
+        $css = preg_replace_callback('/url\(\s*([\'"]?)(.*?)\1\s*\)/is', function ($m) {
+            $target = strtolower(preg_replace('/[\s\x00-\x20]+/', '', $m[2]));
+            return (strpos($target, '#') === 0) ? $m[0] : 'none';
+        }, $css);
+        $css = preg_replace('/expression\s*\(/i', '', $css);
+        $css = str_ireplace('javascript:', '', $css);
+
+        while ($style->firstChild) {
+            $style->removeChild($style->firstChild);
+        }
+        if (trim($css) !== '') {
+            $style->appendChild($style->ownerDocument->createCDATASection($css));
         }
     }
 }
