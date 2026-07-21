@@ -93,6 +93,9 @@ require_once TFM_PLUGIN_DIR . 'includes/class-tfm-updater.php';
 require_once TFM_PLUGIN_DIR . 'includes/class-tfm-video-defer.php';
 require_once TFM_PLUGIN_DIR . 'includes/class-tfm-svg-sanitizer.php';
 
+// Modularized feature includes (moved verbatim from this file).
+require_once TFM_PLUGIN_DIR . 'includes/login-branding.php';
+
 
 // Activation hook
 register_activation_hook(__FILE__, 'tfm_activate_plugin');
@@ -3974,29 +3977,3 @@ function tfm_render_sitemap_debug_page() {
 }
 
 // Login logo customization (optional via setting)
-function wpb_login_logo() {
-    $settings = tfm_load_settings();
-    $logo_url = isset($settings['login_logo_url']) ? esc_url($settings['login_logo_url']) : '';
-    if (empty($logo_url)) return; ?>
-    <style type="text/css">
-        #login h1 a, .login h1 a {
-            background-image: url("<?php echo $logo_url; ?>");
-            height: 80px;
-            width: 80px;
-            background-size: 80px 80px;
-            background-repeat: no-repeat;
-            padding-bottom: 10px;
-        }
-    </style>
-<?php }
-add_action('login_enqueue_scripts', 'wpb_login_logo');
-
-function my_login_logo_url() {
-    return home_url();
-}
-add_filter('login_headerurl', 'my_login_logo_url');
-
-function my_login_logo_url_title() {
-    return 'Your Site Name and Info';
-}
-add_filter('login_headertext', 'my_login_logo_url_title');
