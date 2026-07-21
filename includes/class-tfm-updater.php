@@ -88,9 +88,11 @@ class TFM_Updater {
                 $this->plugin_slug
             );
 
-            // Set authentication for private repository using the new PUC v5.6 API.
-            // Token is sourced from a wp-config.php constant (preferred) or the plugin
-            // settings option — never hardcoded. See get_github_token().
+            // Authenticate only if a token is configured. The default source repo
+            // (TopFireMedia/tfm-plugin) is public, so no token is needed; a token is
+            // required only when pointing at a private repo. Sourced from a
+            // wp-config.php constant (preferred) or the plugin settings option —
+            // never hardcoded. See get_github_token().
             $github_token = $this->get_github_token();
             if ($github_token) {
                 $this->update_checker->setAuthentication($github_token);
@@ -130,11 +132,11 @@ class TFM_Updater {
     /**
      * Retrieve the GitHub authentication token for update checks.
      *
-     * Credentials are never hardcoded. Define TFM_GITHUB_TOKEN in wp-config.php
+     * Credentials are never hardcoded. The default source repo is public, so no
+     * token is required and this returns ''. A token is only needed when the
+     * update source is a private repo: define TFM_GITHUB_TOKEN in wp-config.php
      * (recommended), or store it under the 'github_token' key in the plugin
-     * settings option as a fallback. Returns '' when no token is configured, in
-     * which case update checks against the private repo will simply not
-     * authenticate.
+     * settings option.
      *
      * @return string The token, or '' if none is configured.
      */
