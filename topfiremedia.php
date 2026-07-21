@@ -3,7 +3,7 @@
  * Plugin Name: TFM Custom Functions
  * Plugin URI: https://topfiremedia.com
  * Description: A comprehensive plugin for TFM functionality including logging, video optimization, and more.
- * Version: 3.14.2
+ * Version: 3.14.3
  * Author: TopFireMedia
  * Author URI: https://topfiremedia.com
  * Text Domain: topfiremedia
@@ -61,7 +61,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('TFM_PLUGIN_VERSION', '3.14.2');
+define('TFM_PLUGIN_VERSION', '3.14.3');
 define('TFM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TFM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -95,6 +95,7 @@ require_once TFM_PLUGIN_DIR . 'includes/class-tfm-file-logger.php';
 require_once TFM_PLUGIN_DIR . 'includes/class-tfm-logging-hooks.php';
 require_once TFM_PLUGIN_DIR . 'includes/class-tfm-updater.php';
 require_once TFM_PLUGIN_DIR . 'includes/class-tfm-video-defer.php';
+require_once TFM_PLUGIN_DIR . 'includes/class-tfm-svg-sanitizer.php';
 
 
 // Activation hook
@@ -526,15 +527,78 @@ function tfm_defer_scripts($tag, $handle) {
     return $tag;
 }
 
-// Allow SVG uploads if enabled
+// Allow SVG uploads if enabled — only for users who can already post unfiltered
+// HTML (admins / super admins). This prevents lower-privilege users from
+// uploading a scripted SVG that would execute in an admin's browser (stored XSS).
 function tfm_allow_svg_uploads($mimes) {
     $settings = tfm_load_settings();
-    if ($settings['enable_svg_uploads']) {
-        $mimes['svg'] = 'image/svg+xml';
+    if (!empty($settings['enable_svg_uploads']) && current_user_can('unfiltered_html')) {
+        $mimes['svg']  = 'image/svg+xml';
+        $mimes['svgz'] = 'image/svg+xml';
     }
     return $mimes;
 }
 add_filter('upload_mimes', 'tfm_allow_svg_uploads');
+
+// WordPress's real-mime check (finfo) reports SVGs as text/plain or image/svg,
+// which fails the upload. When SVG uploads are permitted for this user, accept
+// the .svg extension so legitimate files can be stored.
+function tfm_fix_svg_filetype($data, $file, $filename, $mimes, $real_mime = '') {
+    $settings = tfm_load_settings();
+    if (empty($settings['enable_svg_uploads']) || !current_user_can('unfiltered_html')) {
+        return $data;
+    }
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    if ($ext === 'svg' || $ext === 'svgz') {
+        $data['ext']  = $ext;
+        $data['type'] = 'image/svg+xml';
+    }
+    return $data;
+}
+add_filter('wp_check_filetype_and_ext', 'tfm_fix_svg_filetype', 10, 5);
+
+// Sanitize every SVG before it is stored — strip scripts, event handlers,
+// external entities, and script URIs. Reject the upload if it can't be made safe.
+function tfm_sanitize_svg_on_upload($upload) {
+    if (!isset($upload['type'], $upload['file']) || $upload['type'] !== 'image/svg+xml') {
+        return $upload;
+    }
+
+    $contents = file_get_contents($upload['file']);
+    if ($contents === false) {
+        return $upload;
+    }
+
+    $clean = TFM_SVG_Sanitizer::sanitize($contents);
+    if ($clean === false) {
+        @unlink($upload['file']);
+        return ['error' => __('This SVG could not be processed safely and was not uploaded.', 'topfiremedia')];
+    }
+
+    file_put_contents($upload['file'], $clean);
+    return $upload;
+}
+add_filter('wp_handle_upload', 'tfm_sanitize_svg_on_upload');
+add_filter('wp_handle_upload_prefilter', function ($file) {
+    // Prefilter runs before the type is finalized; sanitize by extension here too.
+    if (!empty($file['name']) && preg_match('/\.svgz?$/i', $file['name']) && !empty($file['tmp_name'])) {
+        $settings = tfm_load_settings();
+        if (empty($settings['enable_svg_uploads']) || !current_user_can('unfiltered_html')) {
+            $file['error'] = __('SVG uploads are not permitted for your account.', 'topfiremedia');
+            return $file;
+        }
+        $contents = file_get_contents($file['tmp_name']);
+        if ($contents !== false) {
+            $clean = TFM_SVG_Sanitizer::sanitize($contents);
+            if ($clean === false) {
+                $file['error'] = __('This SVG could not be processed safely and was not uploaded.', 'topfiremedia');
+            } else {
+                file_put_contents($file['tmp_name'], $clean);
+            }
+        }
+    }
+    return $file;
+});
 
 // Shortcodes
 if (tfm_load_settings()['enable_shortcodes']) {
