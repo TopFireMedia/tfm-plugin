@@ -8,7 +8,8 @@ _These are staged on the `release-batch` branch and intentionally not released i
 - **Login-logo URL now safely quoted in its CSS `url()` context** (was output unquoted; `esc_url` is for HTML/URL, not CSS). Admin-controlled, so low risk, but correct now.
 
 **Phone formatting**
-- **The phone formatter now formats every `input[type="tel"]` on the page**, not just fields inside recognized form builders (Elementor Pro / Gravity / CF7). This covers plain Elementor tel widgets and custom/HTML forms, so site-specific "format all tel inputs" custom footer scripts are no longer needed and can be removed.
+- **The phone formatter now formats every `input[type="tel"]` on the page**, not just fields inside recognized form builders (Elementor Pro / Gravity / CF7). This covers plain Elementor tel widgets and custom/HTML forms, so site-specific "format all tel inputs" custom footer scripts are no longer needed.
+- **Automatic removal of the now-redundant manual phone script.** A one-time upgrade (v3.15.0) strips the old "format all tel inputs" `<script>` block from Custom Head/Footer Scripts across all installs — so sites you can't log into are cleaned up automatically. It's surgical: it removes **only** a `<script>` block that both targets tel inputs and formats phone numbers (verified against the corrupted `&gt;`/`/D/g` version too), leaves all other custom scripts intact, and records the removal in the activity log. Opt out per-site with `define('TFM_KEEP_LEGACY_PHONE_SCRIPTS', true);`.
 
 **Performance / efficiency**
 - **Font Awesome and the phone-formatter script are now toggleable** (new "Load Font Awesome" / "Load Phone Formatter" settings, default on). Sites that don't use FA icons or don't have phone-input forms can turn them off to drop a request on every front-end page.
