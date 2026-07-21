@@ -3,7 +3,7 @@
  * Plugin Name: TFM Custom Functions
  * Plugin URI: https://topfiremedia.com
  * Description: A comprehensive plugin for TFM functionality including logging, video optimization, and more.
- * Version: 3.14.2
+ * Version: 3.15.0
  * Author: TopFireMedia
  * Author URI: https://topfiremedia.com
  * Text Domain: topfiremedia
@@ -28,11 +28,7 @@ function tfm_sitemap_get_cached($args = []) {
         return false;
     }
 
-    $settings = tfm_load_settings();
-    $cache_key = tfm_sitemap_get_cache_key($args);
-    $cache_timeout = isset($settings['sitemap_cache_timeout']) ? $settings['sitemap_cache_timeout'] : 3600;
-
-    return get_transient($cache_key);
+    return get_transient(tfm_sitemap_get_cache_key($args));
 }
 
 function tfm_sitemap_set_cached($content, $args = []) {
@@ -61,7 +57,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('TFM_PLUGIN_VERSION', '3.14.2');
+define('TFM_PLUGIN_VERSION', '3.15.0');
 define('TFM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TFM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -95,6 +91,7 @@ require_once TFM_PLUGIN_DIR . 'includes/class-tfm-file-logger.php';
 require_once TFM_PLUGIN_DIR . 'includes/class-tfm-logging-hooks.php';
 require_once TFM_PLUGIN_DIR . 'includes/class-tfm-updater.php';
 require_once TFM_PLUGIN_DIR . 'includes/class-tfm-video-defer.php';
+require_once TFM_PLUGIN_DIR . 'includes/class-tfm-svg-sanitizer.php';
 
 
 // Activation hook
@@ -304,6 +301,8 @@ if (!function_exists('tfm_load_settings')) {
             'debug_mode' => false,
             'enable_shortcodes' => true,
             'enable_svg_uploads' => false,
+            'enable_font_awesome' => true,
+            'enable_phone_formatter' => true,
             'defer_scripts' => false,
             'custom_head_scripts' => '',
             'custom_footer_scripts' => '',
@@ -407,7 +406,100 @@ function tfm_maybe_run_upgrades() {
         update_option('tfm_plugin_settings', $settings);
     }
 
+    // 3.15.0 — the phone formatter now handles ALL tel fields, so the manual
+    // "format all input[type=tel]" scripts some sites pasted into Custom Head/
+    // Footer Scripts are redundant. Remove just that script block (other custom
+    // scripts are preserved). Opt out with:
+    //   define('TFM_KEEP_LEGACY_PHONE_SCRIPTS', true);
+    if (version_compare($installed, '3.15.0', '<')
+        && !(defined('TFM_KEEP_LEGACY_PHONE_SCRIPTS') && TFM_KEEP_LEGACY_PHONE_SCRIPTS)) {
+        tfm_remove_legacy_phone_scripts();
+    }
+
     update_option('tfm_plugin_db_version', TFM_PLUGIN_VERSION);
+}
+
+/**
+ * One-time cleanup: strip the redundant "format all tel inputs" phone script
+ * that some sites pasted into Custom Head/Footer Scripts, now that the plugin's
+ * phone formatter handles every tel field. Removes ONLY a <script> block whose
+ * body both targets tel inputs AND formats phone numbers; all other custom
+ * script content is preserved. The removal is recorded in the activity log.
+ */
+function tfm_remove_legacy_phone_scripts() {
+    $settings = get_option('tfm_plugin_settings', []);
+    if (!is_array($settings)) {
+        return;
+    }
+
+    $removed = false;
+    foreach (['custom_footer_scripts', 'custom_head_scripts'] as $key) {
+        if (empty($settings[$key]) || !is_string($settings[$key])) {
+            continue;
+        }
+        $cleaned = tfm_strip_legacy_phone_script($settings[$key]);
+        if ($cleaned !== $settings[$key]) {
+            $settings[$key] = $cleaned;
+            $removed = true;
+        }
+    }
+
+    if ($removed) {
+        update_option('tfm_plugin_settings', $settings);
+        if (function_exists('tfm_log_action')) {
+            tfm_log_action('option_updated', [
+                'option_name' => 'tfm_plugin_settings (custom scripts)',
+                'old_value'   => 'legacy phone-formatting script present',
+                'new_value'   => 'removed automatically (now redundant with the built-in phone formatter)',
+            ]);
+        }
+    }
+}
+
+/**
+ * Remove <script> blocks that BOTH target tel inputs AND format phone numbers.
+ * Conservative: it requires both signals, so unrelated custom scripts are never
+ * touched. Handles the HTML-entity/backslash corruption the old save path
+ * introduced (e.g. &gt;, input[type=\"tel\"]).
+ */
+function tfm_strip_legacy_phone_script($content) {
+    if (stripos($content, '<script') === false) {
+        return $content;
+    }
+
+    $cleaned = preg_replace_callback(
+        '#<script\b[^>]*>(.*?)</script\s*>#is',
+        function ($m) {
+            $body = $m[1];
+
+            $targets_tel = (stripos($body, 'type="tel"') !== false && stripos($body, 'input') !== false)
+                        || (stripos($body, "type='tel'") !== false && stripos($body, 'input') !== false)
+                        || (stripos($body, 'type=\\"tel\\"') !== false);
+
+            $formats_phone = (stripos($body, "removeattr('pattern')") !== false)
+                          || (stripos($body, 'removeattr("pattern")') !== false)
+                          || (stripos($body, '.substring(0, 3)') !== false)
+                          || (stripos($body, '.substring(0,3)') !== false)
+                          || (stripos($body, "'+1'") !== false && stripos($body, '.substring') !== false)
+                          || (stripos($body, 'tfmphonenumber') !== false && stripos($body, '.val(') !== false);
+
+            return ($targets_tel && $formats_phone) ? '' : $m[0];
+        },
+        $content
+    );
+
+    if ($cleaned === null) {
+        return $content; // regex error — leave content untouched
+    }
+
+    if ($cleaned !== $content) {
+        $cleaned = preg_replace("/(\r?\n){3,}/", "\n\n", $cleaned);
+        if (trim($cleaned) === '') {
+            $cleaned = '';
+        }
+    }
+
+    return $cleaned;
 }
 // Run on 'init' (fires on front-end, admin, and cron) so logging is enabled on
 // the very first request after the update, not only when an admin visits wp-admin.
@@ -416,21 +508,31 @@ add_action('init', 'tfm_maybe_run_upgrades');
 // Enqueue scripts conditionally
 function tfm_enqueue_scripts() {
     $settings = tfm_load_settings();
-    
-    // Font Awesome and optional deferral
-    wp_enqueue_script('font-awesome', 'https://kit.fontawesome.com/79c9dcfe2d.js', [], null, true);
-    if (!has_filter('script_loader_tag', 'tfm_defer_scripts')) {
+
+    // Font Awesome — loads site-wide; can be turned off on sites that don't use
+    // Font Awesome icons (default on to preserve existing behavior).
+    if (!empty($settings['enable_font_awesome'])) {
+        wp_enqueue_script('font-awesome', 'https://kit.fontawesome.com/79c9dcfe2d.js', [], null, true);
+    }
+
+    // Only register the deferral filter when deferral is actually enabled —
+    // otherwise tfm_defer_scripts() runs (and loaded settings) for every single
+    // <script> tag on the page for no reason.
+    if (!empty($settings['defer_scripts']) && !has_filter('script_loader_tag', 'tfm_defer_scripts')) {
         add_filter('script_loader_tag', 'tfm_defer_scripts', 10, 2);
     }
 
-    // Enqueue phone formatter script
-    wp_enqueue_script(
-        'tfm-phone-formatter',
-        plugin_dir_url(__FILE__) . 'assets/js/phone-formatter.js',
-        [],
-        '1.0.0',
-        true
-    );
+    // Phone formatter — only needed on pages with phone input fields; can be
+    // turned off where forms aren't used (default on to preserve behavior).
+    if (!empty($settings['enable_phone_formatter'])) {
+        wp_enqueue_script(
+            'tfm-phone-formatter',
+            plugin_dir_url(__FILE__) . 'assets/js/phone-formatter.js',
+            [],
+            '1.0.0',
+            true
+        );
+    }
 
     // Add UserWay widget if enabled
     if ($settings['enable_userway'] && !empty($settings['userway_account_id'])) {
@@ -526,15 +628,93 @@ function tfm_defer_scripts($tag, $handle) {
     return $tag;
 }
 
-// Allow SVG uploads if enabled
+// Allow SVG uploads if enabled — only for users who can already post unfiltered
+// HTML (admins / super admins). This prevents lower-privilege users from
+// uploading a scripted SVG that would execute in an admin's browser (stored XSS).
 function tfm_allow_svg_uploads($mimes) {
     $settings = tfm_load_settings();
-    if ($settings['enable_svg_uploads']) {
+    if (!empty($settings['enable_svg_uploads']) && current_user_can('unfiltered_html')) {
+        // Only plain .svg — .svgz (gzipped) can't be DOM-sanitized without
+        // gunzipping, so it's not accepted rather than shipped as a dead path.
         $mimes['svg'] = 'image/svg+xml';
     }
     return $mimes;
 }
 add_filter('upload_mimes', 'tfm_allow_svg_uploads');
+
+// WordPress's real-mime check (finfo) reports SVGs as text/plain or image/svg,
+// which fails the upload. When SVG uploads are permitted for this user, accept
+// the .svg extension so legitimate files can be stored.
+function tfm_fix_svg_filetype($data, $file, $filename, $mimes, $real_mime = '') {
+    $settings = tfm_load_settings();
+    if (empty($settings['enable_svg_uploads']) || !current_user_can('unfiltered_html')) {
+        return $data;
+    }
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    if ($ext === 'svg') {
+        $data['ext']  = 'svg';
+        $data['type'] = 'image/svg+xml';
+    }
+    return $data;
+}
+add_filter('wp_check_filetype_and_ext', 'tfm_fix_svg_filetype', 10, 5);
+
+// Sanitize every SVG before it is stored — strip scripts, event handlers,
+// external entities, and script URIs. Reject the upload if it can't be made safe.
+function tfm_sanitize_svg_on_upload($upload) {
+    if (!isset($upload['type'], $upload['file']) || $upload['type'] !== 'image/svg+xml') {
+        return $upload;
+    }
+
+    $contents = file_get_contents($upload['file']);
+    // Fail closed: if we can't read it, we can't prove it's safe.
+    if ($contents === false) {
+        @unlink($upload['file']);
+        return ['error' => __('This SVG could not be read for sanitization and was not uploaded.', 'topfiremedia')];
+    }
+
+    $clean = TFM_SVG_Sanitizer::sanitize($contents);
+    if ($clean === false) {
+        @unlink($upload['file']);
+        return ['error' => __('This SVG could not be processed safely and was not uploaded.', 'topfiremedia')];
+    }
+
+    if (file_put_contents($upload['file'], $clean) === false) {
+        @unlink($upload['file']);
+        return ['error' => __('This SVG could not be saved safely and was not uploaded.', 'topfiremedia')];
+    }
+    return $upload;
+}
+add_filter('wp_handle_upload', 'tfm_sanitize_svg_on_upload');
+add_filter('wp_handle_upload_prefilter', function ($file) {
+    // Prefilter runs before the type is finalized; sanitize by extension here too.
+    if (empty($file['name']) || !preg_match('/\.svg$/i', $file['name']) || empty($file['tmp_name'])) {
+        return $file;
+    }
+
+    $settings = tfm_load_settings();
+    if (empty($settings['enable_svg_uploads']) || !current_user_can('unfiltered_html')) {
+        $file['error'] = __('SVG uploads are not permitted for your account.', 'topfiremedia');
+        return $file;
+    }
+
+    $contents = file_get_contents($file['tmp_name']);
+    if ($contents === false) {
+        $file['error'] = __('This SVG could not be read for sanitization and was not uploaded.', 'topfiremedia');
+        return $file;
+    }
+
+    $clean = TFM_SVG_Sanitizer::sanitize($contents);
+    if ($clean === false) {
+        $file['error'] = __('This SVG could not be processed safely and was not uploaded.', 'topfiremedia');
+        return $file;
+    }
+
+    if (file_put_contents($file['tmp_name'], $clean) === false) {
+        $file['error'] = __('This SVG could not be saved safely and was not uploaded.', 'topfiremedia');
+    }
+    return $file;
+});
 
 // Shortcodes
 if (tfm_load_settings()['enable_shortcodes']) {
@@ -677,19 +857,17 @@ if (tfm_load_settings()['enable_shortcodes']) {
     }
     add_shortcode('tfm_sitemap', 'tfm_sitemap_shortcode');
 
-// Create a global variable that Elementor can access
+// Create a global variable that Elementor can access — only when a valid phone
+// is configured (no point printing a placeholder script on every page otherwise).
 add_action('wp_head', function() {
     $settings = tfm_load_settings();
     $raw_phone = preg_replace('/\D/', '', $settings['phone'] ?? '');
-    $phone_number = '';
-    
-    if (strlen($raw_phone) === 10) {
-        $phone_number = '+1' . $raw_phone;
-    } else {
-        $phone_number = '+10000000000';
+
+    if (strlen($raw_phone) !== 10) {
+        return;
     }
-    
-    echo '<script>window.tfmPhoneNumber = "' . esc_js($phone_number) . '";</script>';
+
+    echo '<script>window.tfmPhoneNumber = "' . esc_js('+1' . $raw_phone) . '";</script>';
 });
 
 
@@ -733,14 +911,6 @@ add_action('wp_head', function() {
         return $amount;
     }
     add_shortcode('average_unit_volume', 'tfm_average_unit_volume_shortcode');
-
-    // Debug shortcode to test if financial shortcodes are working
-    function tfm_financial_test_shortcode() {
-        $settings = tfm_load_settings();
-        $financials = $settings['franchisee_financials'] ?? [];
-        return 'Financial Test: ' . print_r($financials, true);
-    }
-    add_shortcode('financial_test', 'tfm_financial_test_shortcode');
 
     // Full Address Shortcode
     function tfm_full_address_shortcode() {
@@ -1244,8 +1414,6 @@ function tfm_sitemap_metabox_callback($post) {
 
 
 function tfm_sitemap_get_posts($post_type, $args = []) {
-    $settings = tfm_load_settings();
-
     // Default query args
     $query_args = [
         'post_type' => $post_type,
@@ -1253,6 +1421,8 @@ function tfm_sitemap_get_posts($post_type, $args = []) {
         'posts_per_page' => -1,
         'orderby' => 'menu_order title',
         'order' => 'ASC',
+        'no_found_rows' => true,
+        'update_post_meta_cache' => false,
         'meta_query' => [
             [
                 'key' => '_tfm_sitemap_exclude',
@@ -1274,14 +1444,14 @@ function tfm_sitemap_get_posts($post_type, $args = []) {
 }
 
 function tfm_sitemap_get_pages_hierarchical($args = []) {
-    $settings = tfm_load_settings();
-
     $query_args = [
         'post_type' => 'page',
         'post_status' => 'publish',
         'posts_per_page' => -1,
         'orderby' => 'menu_order title',
         'order' => 'ASC',
+        'no_found_rows' => true,
+        'update_post_meta_cache' => false,
         'meta_query' => [
             [
                 'key' => '_tfm_sitemap_exclude',
@@ -1318,6 +1488,8 @@ function tfm_sitemap_get_posts_by_category($args = []) {
             'posts_per_page' => -1,
             'orderby' => 'date',
             'order' => 'DESC',
+            'no_found_rows' => true,
+            'update_post_meta_cache' => false,
             'meta_query' => [
                 [
                     'key' => '_tfm_sitemap_exclude',
@@ -1664,6 +1836,26 @@ function tfm_render_settings_page() {
                                     <input type="checkbox" name="tfm_plugin_settings[enable_shortcodes]" value="1" <?php checked($settings['enable_shortcodes'], true); ?>>
                                     Enable built-in shortcodes
                                 </label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Load Font Awesome</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="tfm_plugin_settings[enable_font_awesome]" value="1" <?php checked($settings['enable_font_awesome'], true); ?>>
+                                    Load the Font Awesome icon kit on the front end
+                                </label>
+                                <p class="description">Turn off on sites that don't use Font Awesome icons to save a render-blocking request on every page.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Load Phone Formatter</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="tfm_plugin_settings[enable_phone_formatter]" value="1" <?php checked($settings['enable_phone_formatter'], true); ?>>
+                                    Load the phone-number formatting script on the front end
+                                </label>
+                                <p class="description">Only needed on pages with phone input fields; turn off elsewhere to skip loading it site-wide.</p>
                             </td>
                         </tr>
                         <tr>
@@ -3567,6 +3759,8 @@ function tfm_sanitize_settings($input) {
     
     // Sanitize boolean values
     $sanitized['enable_svg_uploads'] = isset($input['enable_svg_uploads']);
+    $sanitized['enable_font_awesome'] = isset($input['enable_font_awesome']);
+    $sanitized['enable_phone_formatter'] = isset($input['enable_phone_formatter']);
     $sanitized['enable_shortcodes'] = isset($input['enable_shortcodes']);
     $sanitized['enable_logging'] = isset($input['enable_logging']);
     $sanitized['enable_userway'] = isset($input['enable_userway']);
@@ -3714,9 +3908,9 @@ function tfm_render_sitemap_debug_page() {
         wp_die(__('You do not have sufficient permissions to access this page.'));
     }
 
-    // Clear cache on page load to ensure fresh content
-    tfm_sitemap_clear_cache();
-
+    // Note: the cache is NOT auto-cleared on every load — doing so wiped the
+    // whole site's sitemap cache each time an admin opened this page. Use the
+    // "Clear Sitemap Cache" button below when you need fresh output.
     $settings = tfm_load_settings();
     ?>
     <div class="wrap">
@@ -3786,7 +3980,7 @@ function wpb_login_logo() {
     if (empty($logo_url)) return; ?>
     <style type="text/css">
         #login h1 a, .login h1 a {
-            background-image: url(<?php echo $logo_url; ?>);
+            background-image: url("<?php echo $logo_url; ?>");
             height: 80px;
             width: 80px;
             background-size: 80px 80px;
@@ -3806,10 +4000,3 @@ function my_login_logo_url_title() {
     return 'Your Site Name and Info';
 }
 add_filter('login_headertext', 'my_login_logo_url_title');
-
-// Prevent class redeclaration
-if (!class_exists('TFM_Plugin')) {
-    class TFM_Plugin {
-        // ... rest of the class code ...
-    }
-}

@@ -84,14 +84,33 @@
         }
 
         setupMutationObserver() {
+            // Coalesce mutations: collect added element nodes and process them
+            // once per idle cycle instead of running checkNode synchronously on
+            // every single DOM change (which thrashed on builder/animation pages).
+            let pending = [];
+            let scheduled = false;
+            const flush = () => {
+                scheduled = false;
+                const nodes = pending;
+                pending = [];
+                nodes.forEach(node => this.checkNode(node));
+            };
+            const schedule = window.requestIdleCallback
+                || window.requestAnimationFrame
+                || ((cb) => setTimeout(cb, 200));
+
             this.mutationObserver = new MutationObserver((mutations) => {
                 mutations.forEach(mutation => {
                     mutation.addedNodes.forEach(node => {
                         if (node.nodeType === 1) { // Element node
-                            this.checkNode(node);
+                            pending.push(node);
                         }
                     });
                 });
+                if (pending.length && !scheduled) {
+                    scheduled = true;
+                    schedule(flush);
+                }
             });
 
             this.mutationObserver.observe(document.body, {
