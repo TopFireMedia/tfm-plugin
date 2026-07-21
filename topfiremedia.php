@@ -3,7 +3,7 @@
  * Plugin Name: TFM Custom Functions
  * Plugin URI: https://topfiremedia.com
  * Description: A comprehensive plugin for TFM functionality including logging, video optimization, and more.
- * Version: 3.13.1
+ * Version: 3.14.2
  * Author: TopFireMedia
  * Author URI: https://topfiremedia.com
  * Text Domain: topfiremedia
@@ -61,7 +61,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('TFM_PLUGIN_VERSION', '3.13.1');
+define('TFM_PLUGIN_VERSION', '3.14.2');
 define('TFM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TFM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -295,9 +295,9 @@ if (!function_exists('tfm_load_settings')) {
             'enabled' => true,
             'elementor_enabled' => false,
             'divi_enabled' => true,
-            'enable_logging' => false,
+            'enable_logging' => true,
             'log_retention_days' => 30,
-            'log_level' => 'error',
+            'log_level' => 'all',
             'excluded_pages' => [],
             'excluded_roles' => [],
             'custom_selectors' => '',
@@ -376,11 +376,42 @@ if (!function_exists('tfm_clear_settings_cache')) {
 function tfm_log_action($action, $data = []) {
     global $tfm_logger;
     $settings = tfm_load_settings();
-    
+
     if (isset($settings['enable_logging']) && $settings['enable_logging'] && $tfm_logger) {
         $tfm_logger->log_action($action, $data);
     }
 }
+
+/**
+ * Run one-time upgrade routines, keyed by a stored DB version so each runs once.
+ * Fires on admin_init (cheap, only compares two version strings on most loads).
+ */
+function tfm_maybe_run_upgrades() {
+    $installed = get_option('tfm_plugin_db_version', '0');
+    if (version_compare($installed, TFM_PLUGIN_VERSION, '>=')) {
+        return; // already up to date
+    }
+
+    // 3.14.0 — turn the activity log on across existing installs so the
+    // accountability audit trail is running without per-site toggling. Runs
+    // once; admins can disable afterward and it won't be re-enabled.
+    if (version_compare($installed, '3.14.0', '<')) {
+        $settings = get_option('tfm_plugin_settings', []);
+        if (!is_array($settings)) {
+            $settings = [];
+        }
+        $settings['enable_logging'] = true;
+        if (empty($settings['log_level']) || $settings['log_level'] === 'error') {
+            $settings['log_level'] = 'all';
+        }
+        update_option('tfm_plugin_settings', $settings);
+    }
+
+    update_option('tfm_plugin_db_version', TFM_PLUGIN_VERSION);
+}
+// Run on 'init' (fires on front-end, admin, and cron) so logging is enabled on
+// the very first request after the update, not only when an admin visits wp-admin.
+add_action('init', 'tfm_maybe_run_upgrades');
 
 // Enqueue scripts conditionally
 function tfm_enqueue_scripts() {
@@ -2041,6 +2072,18 @@ function tfm_render_settings_page() {
                             </td>
                         </tr>
                         <tr>
+                            <th>Log Level</th>
+                            <td>
+                                <?php $tfm_log_level = $settings['log_level'] ?? 'all'; ?>
+                                <select name="tfm_plugin_settings[log_level]">
+                                    <option value="all" <?php selected($tfm_log_level, 'all'); ?>>All activity (recommended)</option>
+                                    <option value="important" <?php selected($tfm_log_level, 'important'); ?>>Important only (changes, deletions, failed logins)</option>
+                                    <option value="critical" <?php selected($tfm_log_level, 'critical'); ?>>Critical only (deletions, role changes)</option>
+                                </select>
+                                <p class="description">How much to record. "All activity" captures logins, edits, media and plugin/theme changes; higher levels keep only the more serious events.</p>
+                            </td>
+                        </tr>
+                        <tr>
                             <th>Log Retention</th>
                             <td>
                                 <input type="number" name="tfm_plugin_settings[log_retention_days]" value="<?php echo esc_attr($settings['log_retention_days']); ?>" min="1" max="365" class="small-text">
@@ -2857,20 +2900,20 @@ function tfm_get_log_templates() {
             ],
         ],
         'post_updated' => [
-            'label' => 'Post updated',
+            'label' => 'Content edited',
             'icon' => 'dashicons-edit',
             'severity' => 'info',
-            'message' => '"{post_title}" updated ({old_status} → {new_status})',
+            'message' => '"{post_title}" edited ({changed})',
             'context' => [
                 'Type' => '{post_type}',
                 'Author ID' => '{post_author}',
             ],
         ],
         'post_deleted' => [
-            'label' => 'Post deleted',
+            'label' => 'Content permanently deleted',
             'icon' => 'dashicons-trash',
             'severity' => 'danger',
-            'message' => '"{post_title}" moved to trash',
+            'message' => '"{post_title}" permanently deleted',
             'context' => [
                 'Type' => '{post_type}',
                 'Author ID' => '{post_author}',
@@ -2947,18 +2990,15 @@ function tfm_get_log_templates() {
             'icon' => 'dashicons-admin-plugins',
             'severity' => 'danger',
             'message' => '{plugin} deleted from site',
-            'context' => [
-                'Deleted by' => '{deleted_by}',
-            ],
+            'context' => [],
         ],
         'theme_switched' => [
             'label' => 'Theme switched',
             'icon' => 'dashicons-admin-appearance',
-            'severity' => 'info',
+            'severity' => 'warning',
             'message' => 'Theme switched to {new_theme}',
             'context' => [
                 'Stylesheet' => '{theme_object}',
-                'Triggered by' => '{switched_by}',
             ],
         ],
         'widget_updated' => [
@@ -2982,13 +3022,82 @@ function tfm_get_log_templates() {
             ],
         ],
         'option_updated' => [
-            'label' => 'Option updated',
+            'label' => 'Site setting changed',
             'icon' => 'dashicons-admin-settings',
-            'severity' => 'info',
-            'message' => 'Option "{option_name}" updated',
+            'severity' => 'warning',
+            'message' => 'Setting "{option_name}" changed',
             'context' => [
-                'Change type' => '{change_type}',
+                'From' => '{old_value}',
+                'To' => '{new_value}',
             ],
+        ],
+        'user_login_failed' => [
+            'label' => 'Failed login attempt',
+            'icon' => 'dashicons-warning',
+            'severity' => 'warning',
+            'message' => 'Failed login for "{attempted_username}"',
+            'context' => [
+                'IP' => '{ip_address}',
+            ],
+        ],
+        'user_role_changed' => [
+            'label' => 'User role changed',
+            'icon' => 'dashicons-admin-users',
+            'severity' => 'danger',
+            'message' => '{user_login} role changed to {new_role}',
+            'context' => [
+                'Previous role(s)' => '{old_roles}',
+                'User ID' => '{user_id}',
+            ],
+        ],
+        'user_deleted' => [
+            'label' => 'User deleted',
+            'icon' => 'dashicons-no',
+            'severity' => 'danger',
+            'message' => 'User "{user_login}" deleted',
+            'context' => [
+                'Email' => '{user_email}',
+                'Content reassigned to' => '{reassigned_to}',
+            ],
+        ],
+        'post_trashed' => [
+            'label' => 'Content trashed',
+            'icon' => 'dashicons-trash',
+            'severity' => 'warning',
+            'message' => '"{post_title}" moved to trash',
+            'context' => [
+                'Type' => '{post_type}',
+            ],
+        ],
+        'post_status_changed' => [
+            'label' => 'Content status changed',
+            'icon' => 'dashicons-update',
+            'severity' => 'info',
+            'message' => '"{post_title}" ({old_status} → {new_status})',
+            'context' => [
+                'Type' => '{post_type}',
+            ],
+        ],
+        'plugin_updated' => [
+            'label' => 'Plugin installed/updated',
+            'icon' => 'dashicons-admin-plugins',
+            'severity' => 'info',
+            'message' => 'Plugin {action}: {items}',
+            'context' => [],
+        ],
+        'theme_updated' => [
+            'label' => 'Theme installed/updated',
+            'icon' => 'dashicons-admin-appearance',
+            'severity' => 'info',
+            'message' => 'Theme {action}: {items}',
+            'context' => [],
+        ],
+        'core_updated' => [
+            'label' => 'WordPress core updated',
+            'icon' => 'dashicons-wordpress',
+            'severity' => 'warning',
+            'message' => 'WordPress core {action}',
+            'context' => [],
         ],
         '__default' => [
             'label' => 'Activity recorded',
@@ -3082,7 +3191,14 @@ function tfm_format_log_entry_for_view($log, $index) {
     $human_time = $timestamp ? wp_date('M j, Y g:i a', $timestamp) : '';
     $relative = $timestamp ? human_time_diff($timestamp, current_time('timestamp')) . ' ago' : '';
 
-    $user_display = $log['user_display_name'] ?? $log['user_login'] ?? 'System';
+    // Prefer display name, then the login/context (e.g. 'cron', 'rest'), then a fallback.
+    if (!empty($log['user_display_name'])) {
+        $user_display = $log['user_display_name'];
+    } elseif (!empty($log['user_login'])) {
+        $user_display = $log['user_login'];
+    } else {
+        $user_display = 'System';
+    }
     $user_meta_parts = [];
     if (!empty($log['user_role'])) {
         $user_meta_parts[] = ucwords(str_replace('_', ' ', $log['user_role']));
@@ -3104,7 +3220,9 @@ function tfm_format_log_entry_for_view($log, $index) {
         'id' => 'tfm-log-details-' . $index,
         'icon' => $template['icon'],
         'label' => $template['label'],
-        'severity' => $template['severity'],
+        // Prefer the severity stored at write time; fall back to the template
+        // (for entries logged before severity was stored).
+        'severity' => $log['severity'] ?? $template['severity'],
         'message' => $message,
         'context_badges' => $badges,
         'timestamp_order' => $timestamp,
@@ -3522,6 +3640,9 @@ function tfm_sanitize_settings($input) {
     $sanitized['log_retention_days'] = absint($input['log_retention_days'] ?? 30);
     if ($sanitized['log_retention_days'] < 1) $sanitized['log_retention_days'] = 1;
     if ($sanitized['log_retention_days'] > 365) $sanitized['log_retention_days'] = 365;
+
+    $log_level = $input['log_level'] ?? 'all';
+    $sanitized['log_level'] = in_array($log_level, ['all', 'important', 'critical'], true) ? $log_level : 'all';
     
     // Sanitize scripts — admin-only fields; preserve raw code exactly as entered
     $sanitized['custom_head_scripts'] = wp_unslash($input['custom_head_scripts'] ?? '');
