@@ -37,6 +37,12 @@ class TFM_Logging_Hooks {
         add_action('post_updated', [$this, 'log_post_updated'], 10, 3);
         add_action('before_delete_post', [$this, 'log_post_deleted']);
 
+        // Page-builder edits: Elementor saves its design to postmeta, so a
+        // design-only change never trips post_updated. This hook fires only when
+        // Elementor is active. (Divi keeps its layout in post_content and is
+        // already covered by post_updated.)
+        add_action('elementor/document/after_save', [$this, 'log_elementor_save'], 10, 2);
+
         // Media Actions
         add_action('add_attachment', [$this, 'log_media_uploaded']);
         add_action('delete_attachment', [$this, 'log_media_deleted']);
@@ -255,6 +261,27 @@ class TFM_Logging_Hooks {
             'post_type'   => $post_after->post_type,
             'post_author' => $post_after->post_author,
             'changed'     => implode(', ', $changed),
+        ]);
+    }
+
+    /** Elementor page/design saves (content lives in postmeta, not post_content). */
+    public function log_elementor_save($document, $data = []) {
+        if (!is_object($document) || !method_exists($document, 'get_post')) {
+            return;
+        }
+        $post = $document->get_post();
+        if (!$post instanceof WP_Post) {
+            return;
+        }
+        if (wp_is_post_revision($post->ID) || wp_is_post_autosave($post->ID)) {
+            return;
+        }
+        $this->log_action('post_updated', [
+            'post_id'     => $post->ID,
+            'post_title'  => $post->post_title,
+            'post_type'   => $post->post_type,
+            'post_author' => $post->post_author,
+            'changed'     => 'Elementor design',
         ]);
     }
 

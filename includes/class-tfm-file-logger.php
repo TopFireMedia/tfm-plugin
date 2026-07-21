@@ -348,27 +348,35 @@ class TFM_File_Logger {
         if ($files === false) {
             return $logs;
         }
-        rsort($files); // Most recent first
+        rsort($files); // Most recent month's file first
+
+        // How many entries we ultimately need to satisfy the offset + limit window.
+        $needed = $limit + $offset;
 
         try {
             foreach ($files as $file) {
-                if (count($logs) >= $limit) {
+                if (count($logs) >= $needed) {
                     break;
                 }
 
-                $handle = fopen($file, 'r');
-                if ($handle) {
-                    while (($line = fgets($handle)) !== false) {
-                        $log_entry = json_decode($line, true);
-                        if ($log_entry === null) {
-                            continue; // Skip invalid JSON
-                        }
-                        $logs[] = $log_entry;
-                        if (count($logs) >= $limit) {
-                            break;
-                        }
+                // Entries are appended, so the NEWEST are at the end of the file.
+                // Read the file and walk it bottom-up so the viewer shows the most
+                // recent activity first, instead of the oldest N entries (which,
+                // on a busy site, would never include today's events).
+                $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                if ($lines === false) {
+                    continue;
+                }
+
+                for ($i = count($lines) - 1; $i >= 0; $i--) {
+                    $log_entry = json_decode($lines[$i], true);
+                    if ($log_entry === null) {
+                        continue; // Skip invalid JSON
                     }
-                    fclose($handle);
+                    $logs[] = $log_entry;
+                    if (count($logs) >= $needed) {
+                        break;
+                    }
                 }
             }
         } catch (Exception $e) {
