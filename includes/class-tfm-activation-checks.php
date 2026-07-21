@@ -14,6 +14,7 @@ class TFM_Activation_Checks {
     private $required_extensions = ['json', 'mbstring'];
     private $errors = [];
     private $error_log = [];
+    private $error_reporting; // saved error_reporting() level (PHP 8.2+ needs this declared)
 
     /**
      * Run all activation checks

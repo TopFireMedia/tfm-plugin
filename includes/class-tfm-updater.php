@@ -56,18 +56,6 @@ class TFM_Updater {
     }
 
     private function init_update_checker() {
-        // Use global variable to track PUC loading across all instances
-        global $tfm_puc_loaded;
-        
-        // Check if any PUC classes already exist
-        
-        // If any PUC classes exist, use them instead of loading our own
-        if (class_exists('Puc_v4_Factory') || class_exists('Puc_v4p13_Plugin_UpdateChecker') || (isset($tfm_puc_loaded) && $tfm_puc_loaded)) {
-            // PUC classes already loaded by another plugin/theme or globally - using existing
-        } else {
-            // No existing PUC classes found, loading our own
-        }
-        
         // Check if the update checker class exists
         if (!class_exists('Puc_v4_Factory')) {
             
@@ -160,7 +148,7 @@ class TFM_Updater {
 
         $update = $this->update_checker->getUpdate();
         if ($update) {
-            $current_version = get_plugin_data(plugin_dir_path(dirname(__FILE__)) . 'topfiremedia.php')['Version'];
+            $current_version = TFM_PLUGIN_VERSION;
             if (version_compare($current_version, $update->version, '<')) {
                 ?>
                 <div class="notice notice-warning is-dismissible">

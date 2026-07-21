@@ -28,11 +28,7 @@ function tfm_sitemap_get_cached($args = []) {
         return false;
     }
 
-    $settings = tfm_load_settings();
-    $cache_key = tfm_sitemap_get_cache_key($args);
-    $cache_timeout = isset($settings['sitemap_cache_timeout']) ? $settings['sitemap_cache_timeout'] : 3600;
-
-    return get_transient($cache_key);
+    return get_transient(tfm_sitemap_get_cache_key($args));
 }
 
 function tfm_sitemap_set_cached($content, $args = []) {
@@ -305,6 +301,8 @@ if (!function_exists('tfm_load_settings')) {
             'debug_mode' => false,
             'enable_shortcodes' => true,
             'enable_svg_uploads' => false,
+            'enable_font_awesome' => true,
+            'enable_phone_formatter' => true,
             'defer_scripts' => false,
             'custom_head_scripts' => '',
             'custom_footer_scripts' => '',
@@ -417,21 +415,31 @@ add_action('init', 'tfm_maybe_run_upgrades');
 // Enqueue scripts conditionally
 function tfm_enqueue_scripts() {
     $settings = tfm_load_settings();
-    
-    // Font Awesome and optional deferral
-    wp_enqueue_script('font-awesome', 'https://kit.fontawesome.com/79c9dcfe2d.js', [], null, true);
-    if (!has_filter('script_loader_tag', 'tfm_defer_scripts')) {
+
+    // Font Awesome — loads site-wide; can be turned off on sites that don't use
+    // Font Awesome icons (default on to preserve existing behavior).
+    if (!empty($settings['enable_font_awesome'])) {
+        wp_enqueue_script('font-awesome', 'https://kit.fontawesome.com/79c9dcfe2d.js', [], null, true);
+    }
+
+    // Only register the deferral filter when deferral is actually enabled —
+    // otherwise tfm_defer_scripts() runs (and loaded settings) for every single
+    // <script> tag on the page for no reason.
+    if (!empty($settings['defer_scripts']) && !has_filter('script_loader_tag', 'tfm_defer_scripts')) {
         add_filter('script_loader_tag', 'tfm_defer_scripts', 10, 2);
     }
 
-    // Enqueue phone formatter script
-    wp_enqueue_script(
-        'tfm-phone-formatter',
-        plugin_dir_url(__FILE__) . 'assets/js/phone-formatter.js',
-        [],
-        '1.0.0',
-        true
-    );
+    // Phone formatter — only needed on pages with phone input fields; can be
+    // turned off where forms aren't used (default on to preserve behavior).
+    if (!empty($settings['enable_phone_formatter'])) {
+        wp_enqueue_script(
+            'tfm-phone-formatter',
+            plugin_dir_url(__FILE__) . 'assets/js/phone-formatter.js',
+            [],
+            '1.0.0',
+            true
+        );
+    }
 
     // Add UserWay widget if enabled
     if ($settings['enable_userway'] && !empty($settings['userway_account_id'])) {
@@ -756,19 +764,17 @@ if (tfm_load_settings()['enable_shortcodes']) {
     }
     add_shortcode('tfm_sitemap', 'tfm_sitemap_shortcode');
 
-// Create a global variable that Elementor can access
+// Create a global variable that Elementor can access — only when a valid phone
+// is configured (no point printing a placeholder script on every page otherwise).
 add_action('wp_head', function() {
     $settings = tfm_load_settings();
     $raw_phone = preg_replace('/\D/', '', $settings['phone'] ?? '');
-    $phone_number = '';
-    
-    if (strlen($raw_phone) === 10) {
-        $phone_number = '+1' . $raw_phone;
-    } else {
-        $phone_number = '+10000000000';
+
+    if (strlen($raw_phone) !== 10) {
+        return;
     }
-    
-    echo '<script>window.tfmPhoneNumber = "' . esc_js($phone_number) . '";</script>';
+
+    echo '<script>window.tfmPhoneNumber = "' . esc_js('+1' . $raw_phone) . '";</script>';
 });
 
 
@@ -1315,8 +1321,6 @@ function tfm_sitemap_metabox_callback($post) {
 
 
 function tfm_sitemap_get_posts($post_type, $args = []) {
-    $settings = tfm_load_settings();
-
     // Default query args
     $query_args = [
         'post_type' => $post_type,
@@ -1324,6 +1328,8 @@ function tfm_sitemap_get_posts($post_type, $args = []) {
         'posts_per_page' => -1,
         'orderby' => 'menu_order title',
         'order' => 'ASC',
+        'no_found_rows' => true,
+        'update_post_meta_cache' => false,
         'meta_query' => [
             [
                 'key' => '_tfm_sitemap_exclude',
@@ -1345,14 +1351,14 @@ function tfm_sitemap_get_posts($post_type, $args = []) {
 }
 
 function tfm_sitemap_get_pages_hierarchical($args = []) {
-    $settings = tfm_load_settings();
-
     $query_args = [
         'post_type' => 'page',
         'post_status' => 'publish',
         'posts_per_page' => -1,
         'orderby' => 'menu_order title',
         'order' => 'ASC',
+        'no_found_rows' => true,
+        'update_post_meta_cache' => false,
         'meta_query' => [
             [
                 'key' => '_tfm_sitemap_exclude',
@@ -1389,6 +1395,8 @@ function tfm_sitemap_get_posts_by_category($args = []) {
             'posts_per_page' => -1,
             'orderby' => 'date',
             'order' => 'DESC',
+            'no_found_rows' => true,
+            'update_post_meta_cache' => false,
             'meta_query' => [
                 [
                     'key' => '_tfm_sitemap_exclude',
@@ -1735,6 +1743,26 @@ function tfm_render_settings_page() {
                                     <input type="checkbox" name="tfm_plugin_settings[enable_shortcodes]" value="1" <?php checked($settings['enable_shortcodes'], true); ?>>
                                     Enable built-in shortcodes
                                 </label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Load Font Awesome</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="tfm_plugin_settings[enable_font_awesome]" value="1" <?php checked($settings['enable_font_awesome'], true); ?>>
+                                    Load the Font Awesome icon kit on the front end
+                                </label>
+                                <p class="description">Turn off on sites that don't use Font Awesome icons to save a render-blocking request on every page.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Load Phone Formatter</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="tfm_plugin_settings[enable_phone_formatter]" value="1" <?php checked($settings['enable_phone_formatter'], true); ?>>
+                                    Load the phone-number formatting script on the front end
+                                </label>
+                                <p class="description">Only needed on pages with phone input fields; turn off elsewhere to skip loading it site-wide.</p>
                             </td>
                         </tr>
                         <tr>
@@ -3638,6 +3666,8 @@ function tfm_sanitize_settings($input) {
     
     // Sanitize boolean values
     $sanitized['enable_svg_uploads'] = isset($input['enable_svg_uploads']);
+    $sanitized['enable_font_awesome'] = isset($input['enable_font_awesome']);
+    $sanitized['enable_phone_formatter'] = isset($input['enable_phone_formatter']);
     $sanitized['enable_shortcodes'] = isset($input['enable_shortcodes']);
     $sanitized['enable_logging'] = isset($input['enable_logging']);
     $sanitized['enable_userway'] = isset($input['enable_userway']);
@@ -3785,9 +3815,9 @@ function tfm_render_sitemap_debug_page() {
         wp_die(__('You do not have sufficient permissions to access this page.'));
     }
 
-    // Clear cache on page load to ensure fresh content
-    tfm_sitemap_clear_cache();
-
+    // Note: the cache is NOT auto-cleared on every load — doing so wiped the
+    // whole site's sitemap cache each time an admin opened this page. Use the
+    // "Clear Sitemap Cache" button below when you need fresh output.
     $settings = tfm_load_settings();
     ?>
     <div class="wrap">
@@ -3877,10 +3907,3 @@ function my_login_logo_url_title() {
     return 'Your Site Name and Info';
 }
 add_filter('login_headertext', 'my_login_logo_url_title');
-
-// Prevent class redeclaration
-if (!class_exists('TFM_Plugin')) {
-    class TFM_Plugin {
-        // ... rest of the class code ...
-    }
-}

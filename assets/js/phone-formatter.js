@@ -394,49 +394,67 @@
      * MutationObserver to handle dynamically added forms
      */
     function setupMutationObserver() {
+        // Coalesce mutations and process added nodes once per idle cycle instead
+        // of running form detection synchronously on every DOM change.
+        let pending = [];
+        let scheduled = false;
+        const schedule = window.requestIdleCallback
+            || window.requestAnimationFrame
+            || function (cb) { return setTimeout(cb, 200); };
+
+        function processNode(node) {
+            if (node.nodeType !== 1) return; // Only element nodes
+
+            let formContainer = null;
+            if (node.matches && (
+                node.matches(CONFIG.formContainers.elementor) ||
+                node.matches(CONFIG.formContainers.gravity) ||
+                node.matches(CONFIG.formContainers.contactForm7)
+            )) {
+                formContainer = node;
+            } else {
+                const elementorForm = node.querySelector && node.querySelector(CONFIG.formContainers.elementor);
+                const gravityForm = node.querySelector && node.querySelector(CONFIG.formContainers.gravity);
+                const cf7Form = node.querySelector && node.querySelector(CONFIG.formContainers.contactForm7);
+                formContainer = elementorForm || gravityForm || cf7Form;
+            }
+
+            if (formContainer) {
+                if (formContainer.matches(CONFIG.formContainers.elementor)) {
+                    initializeFieldsInContainer(formContainer, CONFIG.selectors.elementor);
+                } else if (formContainer.matches(CONFIG.formContainers.gravity)) {
+                    initializeFieldsInContainer(formContainer, CONFIG.selectors.gravity);
+                } else if (formContainer.matches(CONFIG.formContainers.contactForm7)) {
+                    initializeFieldsInContainer(formContainer, CONFIG.selectors.contactForm7);
+                }
+            }
+
+            if (node.querySelectorAll) {
+                node.querySelectorAll(CONFIG.selectors.legacy.join(',')).forEach(field => {
+                    initializeFormatter(field);
+                });
+            }
+        }
+
+        function flush() {
+            scheduled = false;
+            const nodes = pending;
+            pending = [];
+            nodes.forEach(processNode);
+        }
+
         const observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
                 mutation.addedNodes.forEach(function(node) {
-                    if (node.nodeType !== 1) return; // Only element nodes
-
-                    // Check if a form container was added
-                    let formContainer = null;
-
-                    // Check if the added node is a form container
-                    if (node.matches && (
-                        node.matches(CONFIG.formContainers.elementor) ||
-                        node.matches(CONFIG.formContainers.gravity) ||
-                        node.matches(CONFIG.formContainers.contactForm7)
-                    )) {
-                        formContainer = node;
-                    } else {
-                        // Check if the added node contains a form container
-                        const elementorForm = node.querySelector && node.querySelector(CONFIG.formContainers.elementor);
-                        const gravityForm = node.querySelector && node.querySelector(CONFIG.formContainers.gravity);
-                        const cf7Form = node.querySelector && node.querySelector(CONFIG.formContainers.contactForm7);
-                        
-                        formContainer = elementorForm || gravityForm || cf7Form;
-                    }
-
-                    if (formContainer) {
-                        // Determine form type and initialize
-                        if (formContainer.matches(CONFIG.formContainers.elementor)) {
-                            initializeFieldsInContainer(formContainer, CONFIG.selectors.elementor);
-                        } else if (formContainer.matches(CONFIG.formContainers.gravity)) {
-                            initializeFieldsInContainer(formContainer, CONFIG.selectors.gravity);
-                        } else if (formContainer.matches(CONFIG.formContainers.contactForm7)) {
-                            initializeFieldsInContainer(formContainer, CONFIG.selectors.contactForm7);
-                        }
-                    }
-
-                    // Also check for legacy fields
-                    if (node.querySelectorAll) {
-                        node.querySelectorAll(CONFIG.selectors.legacy.join(',')).forEach(field => {
-                            initializeFormatter(field);
-                        });
+                    if (node.nodeType === 1) {
+                        pending.push(node);
                     }
                 });
             });
+            if (pending.length && !scheduled) {
+                scheduled = true;
+                schedule(flush);
+            }
         });
 
         // Start observing

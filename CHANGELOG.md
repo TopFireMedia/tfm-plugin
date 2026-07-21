@@ -7,6 +7,16 @@ _These are staged on the `release-batch` branch and intentionally not released i
 - **Removed the `[financial_test]` debug shortcode**, which printed the franchise financials array (`print_r`) on the front end of any page/post where it was placed — an information-disclosure / leftover debug surface.
 - **Login-logo URL now safely quoted in its CSS `url()` context** (was output unquoted; `esc_url` is for HTML/URL, not CSS). Admin-controlled, so low risk, but correct now.
 
+**Performance / efficiency**
+- **Font Awesome and the phone-formatter script are now toggleable** (new "Load Font Awesome" / "Load Phone Formatter" settings, default on). Sites that don't use FA icons or don't have phone-input forms can turn them off to drop a request on every front-end page.
+- **Script-deferral filter is only registered when deferral is enabled.** Previously `tfm_defer_scripts()` ran (and loaded settings) for every `<script>` tag on the page even when the feature was off.
+- **The `window.tfmPhoneNumber` global is only printed when a phone number is configured** (was emitting a placeholder script on every page otherwise).
+- **Sitemap debug page no longer wipes the site's sitemap cache on every view** — clearing is now only via the explicit "Clear Cache" button. Also removed dead code in `tfm_sitemap_get_cached()` and unused settings loads in the sitemap query helpers.
+- **Sitemap queries tuned** with `no_found_rows` and skipping post-meta cache priming (safe, output-preserving; the category grouping was left intact to avoid changing output on nested-category sites).
+- **Updater** now uses the `TFM_PLUGIN_VERSION` constant instead of parsing the plugin file header on every admin page, and a dead PUC-detection branch was removed.
+- **`video-defer.js` and `phone-formatter.js` MutationObservers now debounce** — DOM mutations are batched and processed once per idle cycle instead of running detection synchronously on every change (which thrashed on builder/animation-heavy pages).
+- **Code cleanup:** removed the empty `TFM_Plugin` class stub; declared the `TFM_Activation_Checks::$error_reporting` property (silences a PHP 8.2+ deprecation).
+
 ## 3.14.3 — SVG upload hardening (security)
 - **Fixed stored-XSS via SVG uploads.** SVG uploads (`enable_svg_uploads`) previously accepted files with no sanitization.
   - SVG mime type is now only allowed for users with `unfiltered_html` (admins/super-admins), so lower-privilege users can't upload a scripted SVG that runs in an admin's browser.
