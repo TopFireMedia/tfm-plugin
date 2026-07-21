@@ -99,7 +99,7 @@ class TFM_File_Logger {
         }
     }
 
-    public function log_action($action, $data = []) {
+    public function log_action($action, $data = [], $actor_override = null) {
         if (!$this->settings['enable_logging']) {
             return false;
         }
@@ -119,7 +119,7 @@ class TFM_File_Logger {
         }
 
         try {
-            $actor = $this->get_actor();
+            $actor = $this->get_actor($actor_override);
             $ip = $this->get_client_ip();
 
             // Sanitize data
@@ -183,8 +183,19 @@ class TFM_File_Logger {
      *
      * @return array{user_id:int,user_login:string,user_display_name:string,user_email:string,user_role:string,context:string}
      */
-    private function get_actor() {
-        $user = wp_get_current_user();
+    private function get_actor($override = null) {
+        // Some events (e.g. wp_login) know the acting user but fire before that
+        // user is the "current" user for the request. Callers can pass the user
+        // explicitly (WP_User or user ID) to attribute the entry correctly.
+        $user = null;
+        if ($override instanceof WP_User) {
+            $user = $override;
+        } elseif (is_numeric($override) && (int) $override > 0) {
+            $user = get_user_by('id', (int) $override);
+        }
+        if (!($user instanceof WP_User) || !$user->exists()) {
+            $user = wp_get_current_user();
+        }
 
         if ($user && $user->exists()) {
             return [

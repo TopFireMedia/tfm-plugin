@@ -91,20 +91,22 @@ class TFM_Logging_Hooks {
         return in_array($option_name, $allowlist, true);
     }
 
-    private function log_action($action, $data = []) {
+    private function log_action($action, $data = [], $actor = null) {
         if ($this->logger) {
-            $this->logger->log_action($action, $data);
+            $this->logger->log_action($action, $data, $actor);
         }
     }
 
     // User Actions
     public function log_user_login($user_login, $user) {
+        // The just-logged-in user isn't the "current" user yet on this request,
+        // so pass $user explicitly to attribute the entry to them.
         $this->log_action('user_login', [
             'user_login' => $user_login,
             'user_id' => $user->ID,
             'user_email' => $user->user_email,
             'user_role' => $user->roles[0] ?? 'none'
-        ]);
+        ], $user);
     }
 
     public function log_user_logout() {
