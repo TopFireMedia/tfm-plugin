@@ -376,17 +376,29 @@
      * Main initialization function
      * Priority: Elementor Pro > Gravity Forms > Contact Form 7 > Legacy
      */
+    /**
+     * Catch-all: format every phone field on the page, regardless of which form
+     * (or no form) it belongs to. initializeFormatter is idempotent (guarded by a
+     * WeakSet), so fields already handled by the form-specific detectors below
+     * are not re-initialized. This makes site-specific "format all tel inputs"
+     * custom scripts unnecessary.
+     */
+    function detectAllTelFields() {
+        document.querySelectorAll('input[type="tel"]').forEach(initializeFormatter);
+    }
+
     function init() {
-        // Priority 1: Elementor Pro Forms
+        // Format EVERY tel field on the page — including ones outside recognized
+        // form builders (plain Elementor tel widgets, custom/HTML forms, etc.).
+        detectAllTelFields();
+
+        // Form-builder detectors additionally catch name*="phone"/name*="tel"
+        // text inputs and hook AJAX form-render events for late-loading forms.
         detectElementorForms();
-
-        // Priority 2: Gravity Forms
         detectGravityForms();
-
-        // Priority 3: Contact Form 7
         detectContactForm7();
 
-        // Backward compatibility: Legacy phone-us class
+        // Backward compatibility: Legacy phone-us class (may not be type="tel").
         detectLegacyFields();
     }
 
@@ -429,8 +441,13 @@
                 }
             }
 
+            // Catch-all: any tel field in the added subtree (and the node itself
+            // if it is one), plus legacy .phone-us fields.
+            if (node.matches && node.matches('input[type="tel"]')) {
+                initializeFormatter(node);
+            }
             if (node.querySelectorAll) {
-                node.querySelectorAll(CONFIG.selectors.legacy.join(',')).forEach(field => {
+                node.querySelectorAll('input[type="tel"], ' + CONFIG.selectors.legacy.join(',')).forEach(field => {
                     initializeFormatter(field);
                 });
             }

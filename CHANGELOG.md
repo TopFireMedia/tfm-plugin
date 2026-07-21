@@ -7,6 +7,9 @@ _These are staged on the `release-batch` branch and intentionally not released i
 - **Removed the `[financial_test]` debug shortcode**, which printed the franchise financials array (`print_r`) on the front end of any page/post where it was placed — an information-disclosure / leftover debug surface.
 - **Login-logo URL now safely quoted in its CSS `url()` context** (was output unquoted; `esc_url` is for HTML/URL, not CSS). Admin-controlled, so low risk, but correct now.
 
+**Phone formatting**
+- **The phone formatter now formats every `input[type="tel"]` on the page**, not just fields inside recognized form builders (Elementor Pro / Gravity / CF7). This covers plain Elementor tel widgets and custom/HTML forms, so site-specific "format all tel inputs" custom footer scripts are no longer needed and can be removed.
+
 **Performance / efficiency**
 - **Font Awesome and the phone-formatter script are now toggleable** (new "Load Font Awesome" / "Load Phone Formatter" settings, default on). Sites that don't use FA icons or don't have phone-input forms can turn them off to drop a request on every front-end page.
 - **Script-deferral filter is only registered when deferral is enabled.** Previously `tfm_defer_scripts()` ran (and loaded settings) for every `<script>` tag on the page even when the feature was off.
