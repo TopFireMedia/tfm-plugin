@@ -6,11 +6,20 @@ Running record of all work done on the plugin. Newest first.
 - Split the 3,674-line `topfiremedia.php` into a thin bootstrap (~286 lines) plus focused includes: `settings.php`, `shortcodes.php`, `sitemap.php`, `frontend-scripts.php`, `svg-uploads.php`, `news.php`, `revisions.php`, `upgrades.php`, `admin.php`, `optimizations.php`, `login-branding.php`. Code moved verbatim (no logic change); verified on a full local clone (site renders identically, shortcodes/logging/admin all work, no fatals, no duplicate functions).
 
 
-## 3.14.3 — SVG upload hardening (security)
-- **Fixed stored-XSS via SVG uploads.** SVG uploads (`enable_svg_uploads`) previously accepted files with no sanitization.
-  - SVG mime type is now only allowed for users with `unfiltered_html` (admins/super-admins), so lower-privilege users can't upload a scripted SVG that runs in an admin's browser.
-  - New `TFM_SVG_Sanitizer` strips `<script>`, event handlers, `<foreignObject>`, external entities (XXE), and script/data URIs from every uploaded SVG; unsafe files are rejected. Sanitization runs on `wp_handle_upload_prefilter` (by extension) and `wp_handle_upload` (by type).
-  - Added `wp_check_filetype_and_ext` handling so legitimate SVGs upload correctly.
+## 3.15.0 — security, efficiency & phone-formatting batch
+_Batched release (tested together to avoid many separate fleet updates; validated on a full local site clone)._
+
+**Security**
+- **Fixed stored-XSS via SVG uploads.** SVG mime restricted to `unfiltered_html` users; new `TFM_SVG_Sanitizer` strips `<script>`, event handlers, `<foreignObject>`, external entities (XXE), and script/data URIs from every uploaded SVG (payload-tested); unsafe files rejected. Added `wp_check_filetype_and_ext` handling so legitimate SVGs still upload.
+- **Removed the `[financial_test]` debug shortcode**, which printed the franchise financials array on the front end.
+- **Login-logo URL now safely quoted** in its CSS `url()` context.
+
+**Phone formatting**
+- The formatter now handles **every** `input[type="tel"]`, not just recognized form builders (Elementor Pro / Gravity / CF7).
+- A one-time upgrade **auto-removes the redundant manual "format all tel inputs" script** across all installs — surgical (only that script block; other custom scripts preserved), recorded in the activity log, opt-out via `define('TFM_KEEP_LEGACY_PHONE_SCRIPTS', true)`.
+
+**Performance / efficiency**
+- Font Awesome + phone-formatter now toggleable (default on); deferral filter registered only when enabled; `window.tfmPhoneNumber` printed only when a phone is set (_note: `undefined` instead of a placeholder on unconfigured sites_); sitemap debug-page cache fix + query tuning; updater uses the version constant; debounced `video-defer.js` / `phone-formatter.js` observers; dead-code cleanup.
 
 ## 3.14.2 — Activity-logging rebuild (accountability)
 - **Rebuilt the activity log to reliably record who did what.**
