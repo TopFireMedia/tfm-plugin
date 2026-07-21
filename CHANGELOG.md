@@ -2,6 +2,11 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## Unreleased — batched fixes (holding to ship together)
+_These are staged on the `release-batch` branch and intentionally not released individually, to avoid many separate fleet updates. Includes the SVG hardening (3.14.3) below, plus:_
+- **Removed the `[financial_test]` debug shortcode**, which printed the franchise financials array (`print_r`) on the front end of any page/post where it was placed — an information-disclosure / leftover debug surface.
+- **Login-logo URL now safely quoted in its CSS `url()` context** (was output unquoted; `esc_url` is for HTML/URL, not CSS). Admin-controlled, so low risk, but correct now.
+
 ## 3.14.3 — SVG upload hardening (security)
 - **Fixed stored-XSS via SVG uploads.** SVG uploads (`enable_svg_uploads`) previously accepted files with no sanitization.
   - SVG mime type is now only allowed for users with `unfiltered_html` (admins/super-admins), so lower-privilege users can't upload a scripted SVG that runs in an admin's browser.

@@ -813,14 +813,6 @@ add_action('wp_head', function() {
     }
     add_shortcode('average_unit_volume', 'tfm_average_unit_volume_shortcode');
 
-    // Debug shortcode to test if financial shortcodes are working
-    function tfm_financial_test_shortcode() {
-        $settings = tfm_load_settings();
-        $financials = $settings['franchisee_financials'] ?? [];
-        return 'Financial Test: ' . print_r($financials, true);
-    }
-    add_shortcode('financial_test', 'tfm_financial_test_shortcode');
-
     // Full Address Shortcode
     function tfm_full_address_shortcode() {
         $settings = tfm_load_settings();
@@ -3865,7 +3857,7 @@ function wpb_login_logo() {
     if (empty($logo_url)) return; ?>
     <style type="text/css">
         #login h1 a, .login h1 a {
-            background-image: url(<?php echo $logo_url; ?>);
+            background-image: url("<?php echo $logo_url; ?>");
             height: 80px;
             width: 80px;
             background-size: 80px 80px;
