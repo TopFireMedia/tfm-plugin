@@ -68,6 +68,9 @@ require_once TFM_PLUGIN_DIR . 'includes/frontend-scripts.php';
 require_once TFM_PLUGIN_DIR . 'includes/admin.php';
 require_once TFM_PLUGIN_DIR . 'includes/shortcodes.php';
 
+// Absorbed team plugins.
+require_once TFM_PLUGIN_DIR . 'includes/press-releases.php';
+
 
 // Activation hook
 register_activation_hook(__FILE__, 'tfm_activate_plugin');
