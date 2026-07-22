@@ -2,8 +2,9 @@
 
 Running record of all work done on the plugin. Newest first.
 
-## 3.16.0 — modularize the monolith (no behavior change)
-- Split the 3,674-line `topfiremedia.php` into a thin bootstrap (~286 lines) plus focused includes: `settings.php`, `shortcodes.php`, `sitemap.php`, `frontend-scripts.php`, `svg-uploads.php`, `news.php`, `revisions.php`, `upgrades.php`, `admin.php`, `optimizations.php`, `login-branding.php`. Code moved verbatim (no logic change); verified on a full local clone (site renders identically, shortcodes/logging/admin all work, no fatals, no duplicate functions).
+## 3.16.0 — modularize the monolith
+- Split the 3,674-line `topfiremedia.php` into a thin bootstrap (~285 lines) plus focused includes: `settings.php`, `shortcodes.php`, `sitemap.php`, `frontend-scripts.php`, `svg-uploads.php`, `news.php`, `revisions.php`, `upgrades.php`, `admin.php`, `optimizations.php`, `login-branding.php`. Code moved verbatim (no logic change); verified on a full local clone (site renders identically, shortcodes/logging/admin all work, no fatals, no duplicate functions).
+- **Restored the `disable_emojis` feature.** It had been stored as a single commented-out one-line blob, so the setting did nothing; it's now proper code in `optimizations.php` and actually strips the WordPress emoji scripts/styles when the setting is enabled (verified live).
 
 
 ## 3.15.0 — security, efficiency & phone-formatting batch
