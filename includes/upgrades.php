@@ -242,5 +242,89 @@ function tfm_handover_absorbed_plugin($candidates, $display_names = array(), $sl
             'plugin' => $found . ' (absorbed into TFM Custom Functions)',
         ));
     }
+
+    // Queue its leftover files for removal, handled on a later request once it's
+    // fully deactivated (see tfm_cleanup_absorbed_plugins).
+    $pending = (array) get_option('tfm_absorbed_cleanup', array());
+    if (!in_array($found, $pending, true)) {
+        $pending[] = $found;
+        update_option('tfm_absorbed_cleanup', $pending, false);
+    }
+
     return true;
 }
+
+/**
+ * Remove the leftover files of absorbed standalones after they've been
+ * deactivated.
+ *
+ * Deliberately conservative: it only ever deletes plugins that TFM itself queued
+ * during handover (recorded in the 'tfm_absorbed_cleanup' option) AND that are
+ * no longer in active_plugins. It never scans or guesses. If the host's
+ * filesystem isn't directly writable it does nothing and retries on a later
+ * request. The deletion is recorded in the activity log via WordPress's
+ * 'deleted_plugin' hook.
+ */
+function tfm_cleanup_absorbed_plugins() {
+    $pending = get_option('tfm_absorbed_cleanup', null);
+    if (empty($pending) || !is_array($pending)) {
+        return;
+    }
+
+    $active    = (array) get_option('active_plugins', array());
+    $to_delete = array();
+    $remaining = array();
+    foreach ($pending as $plugin) {
+        // Never delete something still active, and skip anything already gone.
+        if (in_array($plugin, $active, true)) {
+            $remaining[] = $plugin; // still active — leave queued
+            continue;
+        }
+        if (file_exists(WP_PLUGIN_DIR . '/' . $plugin)) {
+            $to_delete[] = $plugin;
+        }
+        // (deactivated and files already gone => drop from the queue)
+    }
+
+    if (empty($to_delete)) {
+        if (empty($remaining)) {
+            delete_option('tfm_absorbed_cleanup');
+        } else {
+            update_option('tfm_absorbed_cleanup', $remaining, false);
+        }
+        return;
+    }
+
+    if (!function_exists('delete_plugins') || !function_exists('WP_Filesystem')) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+    }
+
+    // Direct, credential-free filesystem access only; otherwise defer.
+    if (!WP_Filesystem()) {
+        return;
+    }
+
+    $result = delete_plugins($to_delete);
+    if (is_wp_error($result) || $result === false) {
+        return; // couldn't delete this pass — keep queued, retry later
+    }
+
+    // Recompute the queue: drop anything now deleted or fully resolved.
+    $active    = (array) get_option('active_plugins', array());
+    $still     = array();
+    foreach ($pending as $plugin) {
+        if (in_array($plugin, $to_delete, true)) {
+            continue; // deleted this pass
+        }
+        if (in_array($plugin, $active, true) || file_exists(WP_PLUGIN_DIR . '/' . $plugin)) {
+            $still[] = $plugin;
+        }
+    }
+    if (empty($still)) {
+        delete_option('tfm_absorbed_cleanup');
+    } else {
+        update_option('tfm_absorbed_cleanup', $still, false);
+    }
+}
+add_action('init', 'tfm_cleanup_absorbed_plugins', 20);

@@ -2,6 +2,10 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.18.2 — hands-off updates & absorbed-plugin file cleanup
+- **Background auto-updates for the plugin.** TFM Custom Functions now updates itself on WordPress's own schedule, so a published release rolls out across the fleet within hours with no per-site action. Pull-based (each site fetches from the TFM repo over HTTPS) — it adds no inbound endpoint or new attack surface. On by default; opt out on a specific site with `define('TFM_DISABLE_AUTO_UPDATE', true);` or the `tfm_enable_auto_update` filter.
+- **Absorbed standalones are now fully removed, not just deactivated.** After the handover deactivates an absorbed standalone (Press Release Manager / TFM Cookie Consent), the plugin deletes its leftover files too. Conservative by design: it only ever deletes plugins TFM itself queued during handover and only once they're inactive, it never scans or guesses, it defers silently if the host filesystem isn't directly writable, and the removal is recorded in the activity log.
+
 ## 3.18.1 — robust absorbed-plugin handover
 - **Fixed the absorbed-plugin handover missing some installs.** The deactivation of the now-absorbed standalones (Press Release Manager, TFM Cookie Consent) matched only one exact main-file name, so sites that packaged the plugin under a different folder/file name kept the standalone active (risking a class/CPT redeclaration and a confusing "still active" state). Matching is now loose: it normalizes folder/file names (case, spaces, underscores, `.php`) **and** falls back to matching the plugin's declared "Plugin Name" header — so it catches every packaging variant across the fleet, and also clears stale/ghost entries whose files are gone. The header scan is cached against the active-plugins list so it isn't a per-request cost. (Found during the staged 3.18.0 rollout on staging.)
 
