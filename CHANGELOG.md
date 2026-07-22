@@ -2,6 +2,13 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.18.0 — fleet alerting, heartbeat & health dashboard
+- **ClickUp alerts for critical events.** The plugin sends critical activity-log events (plugin activate/deactivate/delete, role change, user delete, failed logins, permanent delete, core update) to a central ClickUp "Site Alerts" list via a TFM relay — non-blocking, throttled (1 per event+actor per 5 min). No credential lives on any site (the ClickUp token stays at the relay).
+- **Heartbeat + fleet auto-discovery.** Each site checks in every 15 min (wp-cron) with its version/health info; the relay records it, so the fleet self-registers — no manually maintained site list.
+- **Site-down + recovery alerts.** A relay cron (every 5 min) flags sites that stop checking in (no heartbeat for 45 min, confirmed by a direct request) → "site down" ClickUp task; a "recovered" task when they return. (Detecting downtime must be external — a down site can't report itself — so it watches for missing heartbeats.)
+- **Fleet dashboard.** A relay page lists every site with its plugin/PHP/WP version, last-seen, and up/down status.
+- The relay is a small Vercel service in its own repo (`TopFireMedia/tfm-alert-relay`). The plugin only needs the relay URL (baked-in default, overridable via `TFM_ALERT_RELAY_URL`).
+
 ## 3.17.0 — absorb the team plugins (Press Releases + Cookie Consent)
 - **Merged two standalone TFM plugins into TFM Custom Functions** (fewer plugins to maintain per site):
   - **Press Release Manager** → `includes/press-releases.php` + the "Press Release Grid" Elementor widget. Preserves the `press_release` CPT, its ACF/SCF fields, and the widget name (`press_release_grid`), so existing press releases and Elementor pages are unchanged.
