@@ -19,6 +19,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// If the standalone "Press Release Manager" is still active, stay dormant this
+// request and deactivate it so TFM takes over cleanly on the next load (avoids
+// a fatal class/CPT redeclaration during the overlap).
+if (tfm_handover_absorbed_plugin('press-release-manager.php')) {
+    return;
+}
+
 /**
  * Register the press_release custom post type.
  */

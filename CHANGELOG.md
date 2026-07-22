@@ -2,6 +2,13 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.17.0 — absorb the team plugins (Press Releases + Cookie Consent)
+- **Merged two standalone TFM plugins into TFM Custom Functions** (fewer plugins to maintain per site):
+  - **Press Release Manager** → `includes/press-releases.php` + the "Press Release Grid" Elementor widget. Preserves the `press_release` CPT, its ACF/SCF fields, and the widget name (`press_release_grid`), so existing press releases and Elementor pages are unchanged.
+  - **TFM Cookie Consent** → `includes/cookie-consent/` (classes + assets) + a `includes/cookie-consent.php` bootstrap. Preserves the `tfm_cookie_consent_settings` option and class names, so existing configuration is unchanged. Removed debug `error_log` noise.
+- **Safe fleet handover:** when TFM updates, if a now-absorbed standalone is still active, TFM stays dormant that request and automatically deactivates it (fleet-wide, incl. sites with no login access), then takes over on the next load — no class-redeclaration fatal. Verified on the local site clone with both standalones active.
+- **Secure Custom Fields is intentionally NOT bundled** — it's a large (25 MB) third-party plugin, so it stays a standalone dependency; the absorbed plugins use it for their fields.
+
 ## 3.16.0 — modularize the monolith
 - Split the 3,674-line `topfiremedia.php` into a thin bootstrap (~285 lines) plus focused includes: `settings.php`, `shortcodes.php`, `sitemap.php`, `frontend-scripts.php`, `svg-uploads.php`, `news.php`, `revisions.php`, `upgrades.php`, `admin.php`, `optimizations.php`, `login-branding.php`. Code moved verbatim (no logic change); verified on a full local clone (site renders identically, shortcodes/logging/admin all work, no fatals, no duplicate functions).
 - **Restored the `disable_emojis` feature.** It had been stored as a single commented-out one-line blob, so the setting did nothing; it's now proper code in `optimizations.php` and actually strips the WordPress emoji scripts/styles when the setting is enabled (verified live).

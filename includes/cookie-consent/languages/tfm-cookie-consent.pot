@@ -1,0 +1,473 @@
+# Copyright (C) 2024 TFM
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: TFM Cookie Consent 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/tfm-cookie-consent\n"
+"POT-Creation-Date: 2024-01-01 00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2024-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+
+#: tfm-cookie-consent.php:89
+msgid "Cookie Consent"
+msgstr ""
+
+#: tfm-cookie-consent.php:90
+msgid "This website uses cookies to ensure you get the best experience on our website."
+msgstr ""
+
+#: tfm-cookie-consent.php:91
+msgid "Accept All"
+msgstr ""
+
+#: tfm-cookie-consent.php:92
+msgid "Deny All"
+msgstr ""
+
+#: tfm-cookie-consent.php:93
+msgid "Customize"
+msgstr ""
+
+#: tfm-cookie-consent.php:95
+msgid "Necessary"
+msgstr ""
+
+#: tfm-cookie-consent.php:96
+msgid "These cookies are essential for the website to function properly."
+msgstr ""
+
+#: tfm-cookie-consent.php:99
+msgid "Analytics"
+msgstr ""
+
+#: tfm-cookie-consent.php:100
+msgid "These cookies help us understand how visitors interact with our website."
+msgstr ""
+
+#: tfm-cookie-consent.php:103
+msgid "Marketing"
+msgstr ""
+
+#: tfm-cookie-consent.php:104
+msgid "These cookies are used to track visitors across websites for marketing purposes."
+msgstr ""
+
+#: tfm-cookie-consent.php:107
+msgid "Functional"
+msgstr ""
+
+#: tfm-cookie-consent.php:108
+msgid "These cookies enable enhanced functionality and personalization."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:25
+msgid "TFM Cookie Consent"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:26
+msgid "Cookie Consent"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:58
+msgid "Settings saved successfully!"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:59
+msgid "Error saving settings."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:75
+msgid "General"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:76
+msgid "Popup Settings"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:77
+msgid "Cookie Categories"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:78
+msgid "Integrations"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:79
+msgid "Advanced"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:80
+msgid "Colors"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:85
+msgid "Enable Cookie Consent"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:87
+msgid "Enable or disable the cookie consent popup."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:91
+msgid "Consent Expiry (Days)"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:93
+msgid "How long to remember the user's consent choice (1-3650 days)."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:100
+msgid "Popup Title"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:106
+msgid "Popup Message"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:112
+msgid "Accept All Button Text"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:118
+msgid "Deny All Button Text"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:124
+msgid "Customize Button Text"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:130
+msgid "Popup Position"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:132
+msgid "Bottom"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:133
+msgid "Top"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:134
+msgid "Center"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:140
+msgid "Popup Theme"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:142
+msgid "Light"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:143
+msgid "Dark"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:150
+msgid "Background Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:152
+msgid "Main popup background color."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:157
+msgid "Text Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:159
+msgid "Main text color for titles and content."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:164
+msgid "Secondary Text Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:166
+msgid "Color for descriptions and secondary text."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:171
+msgid "Border Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:173
+msgid "Color for borders and dividers."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:178
+msgid "Accept Button Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:180
+msgid "Background color for the Accept All button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:185
+msgid "Accept Button Text Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:187
+msgid "Text color for the Accept All button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:192
+msgid "Deny Button Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:194
+msgid "Background color for the Deny All button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:199
+msgid "Deny Button Text Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:201
+msgid "Text color for the Deny All button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:206
+msgid "Customize Button Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:208
+msgid "Background color for the Customize button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:213
+msgid "Customize Button Text Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:215
+msgid "Text color for the Customize button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:220
+msgid "Save Button Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:222
+msgid "Background color for the Save Preferences button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:227
+msgid "Save Button Text Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:229
+msgid "Text color for the Save Preferences button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:234
+msgid "Back Button Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:236
+msgid "Background color for the Back button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:241
+msgid "Back Button Text Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:243
+msgid "Text color for the Back button."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:248
+msgid "Toggle Active Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:250
+msgid "Color for active toggle switches in customize view."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:255
+msgid "Toggle Inactive Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:257
+msgid "Color for inactive toggle switches in customize view."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:262
+msgid "Category Background Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:264
+msgid "Background color for category items in customize view."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:269
+msgid "Overlay Color"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:271
+msgid "Background overlay color (use alpha for transparency)."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:276
+msgid "Overlay Opacity"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:279
+msgid "Opacity of the background overlay (0-100%)."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:285
+msgid "Configure cookie categories and their descriptions."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:156
+msgid "Add Category"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:165
+msgid "Google Analytics"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:167
+msgid "Enable Google Analytics integration (requires analytics category consent)."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:172
+msgid "Google Tag Manager"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:174
+msgid "Enable Google Tag Manager integration."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:179
+msgid "Facebook Pixel"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:181
+msgid "Enable Facebook Pixel integration (requires marketing category consent)."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:188
+msgid "Custom Scripts"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:190
+msgid "Add custom JavaScript that should run when cookies are accepted. Use {category} to check specific category consent."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:200
+msgid "Category Name"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:208
+msgid "Description"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:216
+msgid "Required"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:218
+msgid "Required categories cannot be disabled by users."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:223
+msgid "Enabled by Default"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:225
+msgid "Whether this category is enabled by default in the customize view."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:230
+msgid "Remove Category"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:275
+msgid "You do not have sufficient permissions to access this page."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-admin.php:280
+msgid "Settings saved successfully!"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-frontend.php:67
+msgid "Saving preferences..."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-frontend.php:68
+msgid "Preferences saved!"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-frontend.php:69
+msgid "Error saving preferences."
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-frontend.php:120
+msgid "Close"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-frontend.php:140
+msgid "Save Preferences"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-frontend.php:143
+msgid "Back"
+msgstr ""
+
+#: includes/class-tfm-cookie-consent-frontend.php:155
+msgid "(Required)"
+msgstr ""
+
+#: assets/js/admin.js:47
+msgid "Are you sure you want to remove this category?"
+msgstr ""
+
+#: assets/js/admin.js:89
+msgid "Settings saved successfully!"
+msgstr ""
+
+#: assets/js/admin.js:90
+msgid "Error saving settings."
+msgstr ""
+
+#: assets/js/admin.js:134
+msgid "Invalid file format."
+msgstr ""
+
+#: assets/js/admin.js:147
+msgid "This will overwrite your current settings. Are you sure?"
+msgstr ""
+
+#: assets/js/admin.js:152
+msgid "Error importing settings."
+msgstr ""
+
+#: assets/js/admin.js:162
+msgid "This will reset all settings to default values. Are you sure?"
+msgstr ""
+
+#: assets/js/admin.js:175
+msgid "This will clear all consent log data. Are you sure?"
+msgstr ""
+
+#: assets/js/admin.js:182
+msgid "Consent log cleared successfully."
+msgstr ""
+
+#: assets/js/frontend.js:89
+msgid "Saving..."
+msgstr ""
+
+#: assets/js/frontend.js:89
+msgid "Save Preferences"
+msgstr ""
+
+#: assets/js/frontend.js:89
+msgid "Back"
+msgstr "" 

@@ -132,3 +132,42 @@ function tfm_strip_legacy_phone_script($content) {
 // Run on 'init' (fires on front-end, admin, and cron) so logging is enabled on
 // the very first request after the update, not only when an admin visits wp-admin.
 add_action('init', 'tfm_maybe_run_upgrades');
+
+/**
+ * Safe handover when a standalone plugin has been absorbed into TFM.
+ *
+ * If a standalone plugin (matched by its main file name, so it's robust to the
+ * folder name) is still active, TFM must NOT define its absorbed copy this
+ * request — otherwise the two would redeclare the same classes and fatal. This
+ * returns true (telling the caller to stay dormant) and deactivates the
+ * standalone so TFM cleanly takes over on the next page load. Runs fleet-wide,
+ * including on sites without login access.
+ *
+ * @param string $main_file  e.g. 'press-release-manager.php'
+ * @return bool  true if the standalone was active (caller should return early)
+ */
+function tfm_handover_absorbed_plugin($main_file) {
+    $active = (array) get_option('active_plugins', array());
+    $found  = null;
+    foreach ($active as $plugin) {
+        if (basename($plugin) === $main_file) {
+            $found = $plugin;
+            break;
+        }
+    }
+    if ($found === null) {
+        return false; // standalone not active — TFM provides the feature
+    }
+
+    if (!function_exists('deactivate_plugins')) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+    deactivate_plugins($found, true); // silent; takes effect next request
+
+    if (function_exists('tfm_log_action')) {
+        tfm_log_action('plugin_deactivated', array(
+            'plugin' => $found . ' (absorbed into TFM Custom Functions)',
+        ));
+    }
+    return true;
+}
