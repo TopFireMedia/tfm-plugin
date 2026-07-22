@@ -2,30 +2,25 @@
 
 Running record of all work done on the plugin. Newest first.
 
-## Unreleased — batched fixes (holding to ship together)
-_These are staged on the `release-batch` branch and intentionally not released individually, to avoid many separate fleet updates. Includes the SVG hardening (3.14.3) below, plus:_
-- **Removed the `[financial_test]` debug shortcode**, which printed the franchise financials array (`print_r`) on the front end of any page/post where it was placed — an information-disclosure / leftover debug surface.
-- **Login-logo URL now safely quoted in its CSS `url()` context** (was output unquoted; `esc_url` is for HTML/URL, not CSS). Admin-controlled, so low risk, but correct now.
+## 3.16.0 — modularize the monolith
+- Split the 3,674-line `topfiremedia.php` into a thin bootstrap (~285 lines) plus focused includes: `settings.php`, `shortcodes.php`, `sitemap.php`, `frontend-scripts.php`, `svg-uploads.php`, `news.php`, `revisions.php`, `upgrades.php`, `admin.php`, `optimizations.php`, `login-branding.php`. Code moved verbatim (no logic change); verified on a full local clone (site renders identically, shortcodes/logging/admin all work, no fatals, no duplicate functions).
+- **Restored the `disable_emojis` feature.** It had been stored as a single commented-out one-line blob, so the setting did nothing; it's now proper code in `optimizations.php` and actually strips the WordPress emoji scripts/styles when the setting is enabled (verified live).
+
+
+## 3.15.0 — security, efficiency & phone-formatting batch
+_Batched release (tested together to avoid many separate fleet updates; validated on a full local site clone)._
+
+**Security**
+- **Fixed stored-XSS via SVG uploads.** SVG mime restricted to `unfiltered_html` users; new `TFM_SVG_Sanitizer` strips `<script>`, event handlers, `<foreignObject>`, external entities (XXE), and script/data URIs from every uploaded SVG (payload-tested); unsafe files rejected. Added `wp_check_filetype_and_ext` handling so legitimate SVGs still upload.
+- **Removed the `[financial_test]` debug shortcode**, which printed the franchise financials array on the front end.
+- **Login-logo URL now safely quoted** in its CSS `url()` context.
 
 **Phone formatting**
-- **The phone formatter now formats every `input[type="tel"]` on the page**, not just fields inside recognized form builders (Elementor Pro / Gravity / CF7). This covers plain Elementor tel widgets and custom/HTML forms, so site-specific "format all tel inputs" custom footer scripts are no longer needed.
-- **Automatic removal of the now-redundant manual phone script.** A one-time upgrade (v3.15.0) strips the old "format all tel inputs" `<script>` block from Custom Head/Footer Scripts across all installs — so sites you can't log into are cleaned up automatically. It's surgical: it removes **only** a `<script>` block that both targets tel inputs and formats phone numbers (verified against the corrupted `&gt;`/`/D/g` version too), leaves all other custom scripts intact, and records the removal in the activity log. Opt out per-site with `define('TFM_KEEP_LEGACY_PHONE_SCRIPTS', true);`.
+- The formatter now handles **every** `input[type="tel"]`, not just recognized form builders (Elementor Pro / Gravity / CF7).
+- A one-time upgrade **auto-removes the redundant manual "format all tel inputs" script** across all installs — surgical (only that script block; other custom scripts preserved), recorded in the activity log, opt-out via `define('TFM_KEEP_LEGACY_PHONE_SCRIPTS', true)`.
 
 **Performance / efficiency**
-- **Font Awesome and the phone-formatter script are now toggleable** (new "Load Font Awesome" / "Load Phone Formatter" settings, default on). Sites that don't use FA icons or don't have phone-input forms can turn them off to drop a request on every front-end page.
-- **Script-deferral filter is only registered when deferral is enabled.** Previously `tfm_defer_scripts()` ran (and loaded settings) for every `<script>` tag on the page even when the feature was off.
-- **The `window.tfmPhoneNumber` global is only printed when a phone number is configured** (was emitting a placeholder script on every page otherwise). _Release note: on a site with no valid phone set, `window.tfmPhoneNumber` is now `undefined` instead of the placeholder `"+10000000000"`. Sites with a phone configured are byte-identical. Any external/theme code that reads the global should null-check it (a `tel:+10000000000` link was never valid anyway)._
-- **Sitemap debug page no longer wipes the site's sitemap cache on every view** — clearing is now only via the explicit "Clear Cache" button. Also removed dead code in `tfm_sitemap_get_cached()` and unused settings loads in the sitemap query helpers.
-- **Sitemap queries tuned** with `no_found_rows` and skipping post-meta cache priming (safe, output-preserving; the category grouping was left intact to avoid changing output on nested-category sites).
-- **Updater** now uses the `TFM_PLUGIN_VERSION` constant instead of parsing the plugin file header on every admin page, and a dead PUC-detection branch was removed.
-- **`video-defer.js` and `phone-formatter.js` MutationObservers now debounce** — DOM mutations are batched and processed once per idle cycle instead of running detection synchronously on every change (which thrashed on builder/animation-heavy pages).
-- **Code cleanup:** removed the empty `TFM_Plugin` class stub; declared the `TFM_Activation_Checks::$error_reporting` property (silences a PHP 8.2+ deprecation).
-
-## 3.14.3 — SVG upload hardening (security)
-- **Fixed stored-XSS via SVG uploads.** SVG uploads (`enable_svg_uploads`) previously accepted files with no sanitization.
-  - SVG mime type is now only allowed for users with `unfiltered_html` (admins/super-admins), so lower-privilege users can't upload a scripted SVG that runs in an admin's browser.
-  - New `TFM_SVG_Sanitizer` strips `<script>`, event handlers, `<foreignObject>`, external entities (XXE), and script/data URIs from every uploaded SVG; unsafe files are rejected. Sanitization runs on `wp_handle_upload_prefilter` (by extension) and `wp_handle_upload` (by type).
-  - Added `wp_check_filetype_and_ext` handling so legitimate SVGs upload correctly.
+- Font Awesome + phone-formatter now toggleable (default on); deferral filter registered only when enabled; `window.tfmPhoneNumber` printed only when a phone is set (_note: `undefined` instead of a placeholder on unconfigured sites_); sitemap debug-page cache fix + query tuning; updater uses the version constant; debounced `video-defer.js` / `phone-formatter.js` observers; dead-code cleanup.
 
 ## 3.14.2 — Activity-logging rebuild (accountability)
 - **Rebuilt the activity log to reliably record who did what.**
