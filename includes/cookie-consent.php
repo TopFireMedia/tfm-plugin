@@ -15,7 +15,11 @@ if (!defined('ABSPATH')) {
 // If the standalone "TFM Cookie Consent" is still active, stay dormant this
 // request and deactivate it so TFM takes over cleanly on the next load (avoids
 // a fatal class redeclaration during the overlap).
-if (tfm_handover_absorbed_plugin('tfm-cookie-consent.php')) {
+if (tfm_handover_absorbed_plugin(
+    array('tfm-cookie-consent.php', 'tfm-cookie-consent', 'TFM-Cookie-Consent'),
+    array('TFM Cookie Consent'),
+    'cookie_consent'
+)) {
     return;
 }
 

@@ -2,6 +2,9 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.18.1 — robust absorbed-plugin handover
+- **Fixed the absorbed-plugin handover missing some installs.** The deactivation of the now-absorbed standalones (Press Release Manager, TFM Cookie Consent) matched only one exact main-file name, so sites that packaged the plugin under a different folder/file name kept the standalone active (risking a class/CPT redeclaration and a confusing "still active" state). Matching is now loose: it normalizes folder/file names (case, spaces, underscores, `.php`) **and** falls back to matching the plugin's declared "Plugin Name" header — so it catches every packaging variant across the fleet, and also clears stale/ghost entries whose files are gone. The header scan is cached against the active-plugins list so it isn't a per-request cost. (Found during the staged 3.18.0 rollout on staging.)
+
 ## 3.18.0 — fleet alerting, heartbeat & health dashboard
 - **ClickUp alerts for critical events.** The plugin sends critical activity-log events (plugin activate/deactivate/delete, role change, user delete, failed logins, permanent delete, core update) to a central ClickUp "Site Alerts" list via a TFM relay — non-blocking, throttled (1 per event+actor per 5 min). No credential lives on any site (the ClickUp token stays at the relay).
 - **Heartbeat + fleet auto-discovery.** Each site checks in every 15 min (wp-cron) with its version/health info; the relay records it, so the fleet self-registers — no manually maintained site list.

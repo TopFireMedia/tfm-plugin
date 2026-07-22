@@ -134,27 +134,100 @@ function tfm_strip_legacy_phone_script($content) {
 add_action('init', 'tfm_maybe_run_upgrades');
 
 /**
+ * Normalize a plugin file/folder identifier for loose matching: lowercase, drop
+ * a trailing ".php", and treat spaces/underscores as hyphens. So
+ * "Press Release Manager", "press-release-manager", and
+ * "press-release-manager.php" all normalize to "press-release-manager".
+ *
+ * @param string $id
+ * @return string
+ */
+function tfm_norm_plugin_id($id) {
+    $id = strtolower((string) $id);
+    $id = preg_replace('/\.php$/', '', $id);
+    $id = str_replace(array(' ', '_'), '-', $id);
+    return trim($id);
+}
+
+/**
  * Safe handover when a standalone plugin has been absorbed into TFM.
  *
- * If a standalone plugin (matched by its main file name, so it's robust to the
- * folder name) is still active, TFM must NOT define its absorbed copy this
- * request — otherwise the two would redeclare the same classes and fatal. This
- * returns true (telling the caller to stay dormant) and deactivates the
- * standalone so TFM cleanly takes over on the next page load. Runs fleet-wide,
+ * If the absorbed standalone is still active, TFM must NOT define its absorbed
+ * copy this request — otherwise the two would redeclare the same classes/CPT and
+ * fatal. This returns true (telling the caller to stay dormant) and deactivates
+ * the standalone so TFM cleanly takes over on the next load. Runs fleet-wide,
  * including on sites without login access.
  *
- * @param string $main_file  e.g. 'press-release-manager.php'
- * @return bool  true if the standalone was active (caller should return early)
+ * Matching is deliberately loose because the same in-house plugin is packaged
+ * inconsistently across the fleet (different folder names, capitalization, even
+ * different main-file names):
+ *   1. Cheap: any active plugin whose main-file OR folder name matches one of
+ *      $candidates after normalization (case / spaces / underscores / .php).
+ *   2. Fallback: any active plugin whose declared "Plugin Name" header matches
+ *      one of $display_names. The header scan is cached against the current
+ *      active-plugins signature, so it runs only when the plugin set changes —
+ *      not on every request.
+ *
+ * @param string|array $candidates    File/folder identifiers, e.g. 'press-release-manager.php'.
+ * @param array        $display_names Declared plugin names to match, e.g. ['Press Release Manager'].
+ * @param string       $slug          Stable key for caching the header scan.
+ * @return bool True if a matching standalone was found and deactivated.
  */
-function tfm_handover_absorbed_plugin($main_file) {
+function tfm_handover_absorbed_plugin($candidates, $display_names = array(), $slug = '') {
     $active = (array) get_option('active_plugins', array());
-    $found  = null;
+
+    $wanted = array();
+    foreach ((array) $candidates as $c) {
+        $n = tfm_norm_plugin_id($c);
+        if ($n !== '' && $n !== '.') {
+            $wanted[$n] = true;
+        }
+    }
+
+    // 1) Cheap normalized match on the active-plugins entries (works even if the
+    //    plugin's files are missing — clears stale/ghost entries too).
+    $found = null;
     foreach ($active as $plugin) {
-        if (basename($plugin) === $main_file) {
+        $base = tfm_norm_plugin_id(basename($plugin));
+        $dir  = tfm_norm_plugin_id(dirname($plugin));
+        if (isset($wanted[$base]) || ($dir !== '.' && $dir !== '' && isset($wanted[$dir]))) {
             $found = $plugin;
             break;
         }
     }
+
+    // 2) Fallback: match by the declared "Plugin Name" header, for odd packagings
+    //    the name check above can miss. Cached by active-plugins signature.
+    if ($found === null && !empty($display_names) && $slug) {
+        $sig       = md5(implode('|', $active));
+        $cache_key = 'tfm_handover_scan_' . $slug;
+        $cached    = get_option($cache_key);
+        if (!is_array($cached) || ($cached['sig'] ?? '') !== $sig) {
+            if (!function_exists('get_plugin_data')) {
+                require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            }
+            $want_names = array_map(function ($n) { return strtolower(trim($n)); }, (array) $display_names);
+            foreach ($active as $plugin) {
+                $path = WP_PLUGIN_DIR . '/' . $plugin;
+                if (!is_readable($path)) {
+                    continue;
+                }
+                $data = get_plugin_data($path, false, false);
+                if (!empty($data['Name']) && in_array(strtolower(trim($data['Name'])), $want_names, true)) {
+                    $found = $plugin;
+                    break;
+                }
+            }
+            if ($found === null) {
+                // Record that this exact plugin set has no name match, so we skip
+                // the header scan until the active-plugins list changes.
+                update_option($cache_key, array('sig' => $sig), false);
+            } else {
+                delete_option($cache_key);
+            }
+        }
+    }
+
     if ($found === null) {
         return false; // standalone not active — TFM provides the feature
     }

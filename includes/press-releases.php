@@ -22,7 +22,11 @@ if (!defined('ABSPATH')) {
 // If the standalone "Press Release Manager" is still active, stay dormant this
 // request and deactivate it so TFM takes over cleanly on the next load (avoids
 // a fatal class/CPT redeclaration during the overlap).
-if (tfm_handover_absorbed_plugin('press-release-manager.php')) {
+if (tfm_handover_absorbed_plugin(
+    array('press-release-manager.php', 'press-release-manager', 'Press Release Manager'),
+    array('Press Release Manager'),
+    'prm'
+)) {
     return;
 }
 
