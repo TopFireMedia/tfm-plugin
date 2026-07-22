@@ -2,6 +2,10 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.19.2 — fresher "last seen" on low-traffic sites
+- **Heartbeat interval tightened to 10 minutes** (was 15), and existing sites are migrated off the old 15-minute schedule automatically.
+- Paired with a relay change (the fleet monitor now nudges every site each run, every ~5 min, which wakes its wp-cron), so a site's "last seen" stays within roughly 15 minutes **even with zero visitor traffic** — previously an idle staging site could show "45+ min ago" because WordPress cron only runs on a page visit. Real-traffic sites were always fine; this fixes the idle case.
+
 ## 3.19.1 — remove absorbed standalones that were already deactivated
 - **Fixed:** the file cleanup only removed absorbed standalones that were *active* at update time (via the handover). A copy that had already been **deactivated** before the update — commonly TFM Cookie Consent — was left on disk. Cleanup now removes any **installed-but-inactive** copy of an absorbed plugin (Press Release Manager, TFM Cookie Consent), identified by folder/file name or declared plugin name. It stays conservative: it never deletes an active plugin, uses direct filesystem access only (defers otherwise, never prompting for credentials), and is gated by a plugins-directory signature so it isn't a per-request cost.
 

@@ -15,21 +15,26 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Add a 15-minute cron interval.
+// Add a 10-minute cron interval.
 add_filter('cron_schedules', function ($schedules) {
-    if (!isset($schedules['tfm_fifteen_minutes'])) {
-        $schedules['tfm_fifteen_minutes'] = array(
-            'interval' => 15 * MINUTE_IN_SECONDS,
-            'display'  => 'Every 15 Minutes (TFM)',
+    if (!isset($schedules['tfm_ten_minutes'])) {
+        $schedules['tfm_ten_minutes'] = array(
+            'interval' => 10 * MINUTE_IN_SECONDS,
+            'display'  => 'Every 10 Minutes (TFM)',
         );
     }
     return $schedules;
 });
 
-// Ensure the heartbeat is scheduled.
+// Ensure the heartbeat is scheduled on the 10-minute interval, migrating sites
+// still on the previous 15-minute schedule.
 add_action('init', function () {
-    if (!wp_next_scheduled('tfm_heartbeat_event')) {
-        wp_schedule_event(time() + MINUTE_IN_SECONDS, 'tfm_fifteen_minutes', 'tfm_heartbeat_event');
+    $schedule = wp_get_schedule('tfm_heartbeat_event');
+    if ($schedule !== 'tfm_ten_minutes') {
+        if ($schedule !== false) {
+            wp_clear_scheduled_hook('tfm_heartbeat_event');
+        }
+        wp_schedule_event(time() + MINUTE_IN_SECONDS, 'tfm_ten_minutes', 'tfm_heartbeat_event');
     }
 });
 add_action('tfm_heartbeat_event', 'tfm_send_heartbeat');
