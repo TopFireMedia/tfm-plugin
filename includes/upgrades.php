@@ -243,88 +243,121 @@ function tfm_handover_absorbed_plugin($candidates, $display_names = array(), $sl
         ));
     }
 
-    // Queue its leftover files for removal, handled on a later request once it's
-    // fully deactivated (see tfm_cleanup_absorbed_plugins).
-    $pending = (array) get_option('tfm_absorbed_cleanup', array());
-    if (!in_array($found, $pending, true)) {
-        $pending[] = $found;
-        update_option('tfm_absorbed_cleanup', $pending, false);
-    }
+    // Force the file-cleanup pass to re-scan now that this standalone is
+    // deactivated (deactivation doesn't change the plugins directory, so the
+    // cleanup's directory-signature gate wouldn't otherwise notice).
+    delete_option('tfm_absorbed_scan_sig');
 
     return true;
 }
 
 /**
- * Remove the leftover files of absorbed standalones after they've been
- * deactivated.
+ * Identifiers for the standalones absorbed into TFM: normalized folder/file
+ * candidates plus declared plugin names. Used to recognize a leftover copy of an
+ * absorbed plugin regardless of how it's packaged across the fleet.
+ */
+function tfm_absorbed_plugin_specs() {
+    return array(
+        'prm' => array(
+            'ids'   => array('press-release-manager.php', 'press-release-manager', 'Press Release Manager'),
+            'names' => array('Press Release Manager'),
+        ),
+        'cookie_consent' => array(
+            'ids'   => array('tfm-cookie-consent.php', 'tfm-cookie-consent', 'TFM-Cookie-Consent'),
+            'names' => array('TFM Cookie Consent'),
+        ),
+    );
+}
+
+/**
+ * Whether an installed plugin (by its "folder/file.php" entry and declared name)
+ * is one of the absorbed standalones.
+ */
+function tfm_plugin_is_absorbed($plugin_file, $plugin_name) {
+    $base = tfm_norm_plugin_id(basename($plugin_file));
+    $dir  = tfm_norm_plugin_id(dirname($plugin_file));
+    $name = strtolower(trim((string) $plugin_name));
+    foreach (tfm_absorbed_plugin_specs() as $spec) {
+        foreach ($spec['ids'] as $id) {
+            $n = tfm_norm_plugin_id($id);
+            if ($n !== '' && $n !== '.' && ($n === $base || ($dir !== '.' && $dir !== '' && $n === $dir))) {
+                return true;
+            }
+        }
+        if ($name !== '') {
+            foreach ($spec['names'] as $nm) {
+                if (strtolower(trim($nm)) === $name) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Remove the leftover files of absorbed standalones — including copies that were
+ * already deactivated before the update, not just ones TFM deactivates in the
+ * moment.
  *
- * Deliberately conservative: it only ever deletes plugins that TFM itself queued
- * during handover (recorded in the 'tfm_absorbed_cleanup' option) AND that are
- * no longer in active_plugins. It never scans or guesses. If the host's
- * filesystem isn't directly writable it does nothing and retries on a later
- * request. The deletion is recorded in the activity log via WordPress's
+ * Conservative and cheap: it only ever deletes an installed plugin that matches
+ * an absorbed spec AND is NOT active (active copies are handled by the module
+ * handover). It's gated by a signature of the plugins directory so get_plugins()
+ * only runs when that directory changes, and it deletes only via a direct,
+ * credential-free filesystem (otherwise it defers and retries) so it never emits
+ * a credentials form on the front end. Deletions are recorded via WordPress's
  * 'deleted_plugin' hook.
  */
 function tfm_cleanup_absorbed_plugins() {
-    $pending = get_option('tfm_absorbed_cleanup', null);
-    if (empty($pending) || !is_array($pending)) {
+    if (!is_dir(WP_PLUGIN_DIR)) {
         return;
     }
-
-    $active    = (array) get_option('active_plugins', array());
-    $to_delete = array();
-    $remaining = array();
-    foreach ($pending as $plugin) {
-        // Never delete something still active, and skip anything already gone.
-        if (in_array($plugin, $active, true)) {
-            $remaining[] = $plugin; // still active — leave queued
-            continue;
-        }
-        if (file_exists(WP_PLUGIN_DIR . '/' . $plugin)) {
-            $to_delete[] = $plugin;
-        }
-        // (deactivated and files already gone => drop from the queue)
-    }
-
-    if (empty($to_delete)) {
-        if (empty($remaining)) {
-            delete_option('tfm_absorbed_cleanup');
-        } else {
-            update_option('tfm_absorbed_cleanup', $remaining, false);
-        }
+    $entries = @scandir(WP_PLUGIN_DIR);
+    if ($entries === false) {
         return;
     }
+    $sig = md5(implode('|', $entries));
+    if (get_option('tfm_absorbed_scan_sig') === $sig) {
+        return; // plugins directory unchanged since the last clean pass
+    }
 
-    if (!function_exists('delete_plugins') || !function_exists('WP_Filesystem')) {
+    if (!function_exists('get_plugins')) {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        require_once ABSPATH . 'wp-admin/includes/file.php';
+    }
+    $all     = get_plugins();
+    $active  = (array) get_option('active_plugins', array());
+    $targets = array();
+    foreach ($all as $plugin_file => $data) {
+        if (in_array($plugin_file, $active, true)) {
+            continue; // active — the module handover deals with it
+        }
+        if (tfm_plugin_is_absorbed($plugin_file, isset($data['Name']) ? $data['Name'] : '')) {
+            $targets[] = $plugin_file;
+        }
     }
 
-    // Direct, credential-free filesystem access only; otherwise defer.
-    if (!WP_Filesystem()) {
+    if (empty($targets)) {
+        update_option('tfm_absorbed_scan_sig', $sig, false);
         return;
     }
 
-    $result = delete_plugins($to_delete);
-    if (is_wp_error($result) || $result === false) {
-        return; // couldn't delete this pass — keep queued, retry later
+    if (!function_exists('get_filesystem_method') || !function_exists('delete_plugins')) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+    // Only proceed with direct filesystem access — otherwise defer (and don't
+    // record the signature, so we retry) rather than prompt for FTP credentials.
+    if (get_filesystem_method() !== 'direct' || !WP_Filesystem()) {
+        return;
     }
 
-    // Recompute the queue: drop anything now deleted or fully resolved.
-    $active    = (array) get_option('active_plugins', array());
-    $still     = array();
-    foreach ($pending as $plugin) {
-        if (in_array($plugin, $to_delete, true)) {
-            continue; // deleted this pass
-        }
-        if (in_array($plugin, $active, true) || file_exists(WP_PLUGIN_DIR . '/' . $plugin)) {
-            $still[] = $plugin;
-        }
+    $result = delete_plugins($targets);
+    if (is_wp_error($result) || $result === false) {
+        return; // couldn't delete this pass — retry on a later request
     }
-    if (empty($still)) {
-        delete_option('tfm_absorbed_cleanup');
-    } else {
-        update_option('tfm_absorbed_cleanup', $still, false);
-    }
+
+    // Record the post-deletion directory signature so we don't rescan needlessly.
+    $entries = @scandir(WP_PLUGIN_DIR);
+    update_option('tfm_absorbed_scan_sig', $entries === false ? $sig : md5(implode('|', $entries)), false);
 }
 add_action('init', 'tfm_cleanup_absorbed_plugins', 20);

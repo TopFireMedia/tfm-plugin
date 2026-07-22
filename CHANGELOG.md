@@ -2,6 +2,9 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.19.1 — remove absorbed standalones that were already deactivated
+- **Fixed:** the file cleanup only removed absorbed standalones that were *active* at update time (via the handover). A copy that had already been **deactivated** before the update — commonly TFM Cookie Consent — was left on disk. Cleanup now removes any **installed-but-inactive** copy of an absorbed plugin (Press Release Manager, TFM Cookie Consent), identified by folder/file name or declared plugin name. It stays conservative: it never deletes an active plugin, uses direct filesystem access only (defers otherwise, never prompting for credentials), and is gated by a plugins-directory signature so it isn't a per-request cost.
+
 ## 3.19.0 — begin retiring the custom-scripts feature
 _Phase 1 of sunsetting the plugin's custom head/footer scripts in favor of Elementor's Custom Code area. Nothing breaks — existing code keeps running; new input is frozen; a migration checklist is added._
 - **Custom head/footer scripts are now frozen.** Existing scripts still render exactly as before, but the fields are **read-only** — no new or edited code can be saved. This is enforced **server-side** (the save handler only ever keeps the current value or clears it), not just in the UI, so it can't be bypassed by posting directly. The tab shows a "Deprecated" notice pointing to Elementor &rarr; Custom Code.
