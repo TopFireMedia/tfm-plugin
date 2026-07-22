@@ -2,6 +2,9 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.20.0 — cookie consent inactive by default
+- **The cookie-consent banner is now off by default.** Earlier builds seeded it **on** for every install, so sites that never used cookie consent got a banner. Now it's enabled only where the site actually used it: when the absorb handover deactivates an **active** standalone "TFM Cookie Consent", it records provenance and keeps the banner on; every other install defaults to off. A one-time migration turns the banner off on any site that was only auto-enabled by the old default (sites with provenance are preserved). It can still be enabled per-site from the plugin settings. _Rule: off by default, but if it was active in the old standalone plugin it stays active._
+
 ## 3.19.2 — fresher "last seen" on low-traffic sites
 - **Heartbeat interval tightened to 10 minutes** (was 15), and existing sites are migrated off the old 15-minute schedule automatically.
 - Paired with a relay change (the fleet monitor now nudges every site each run, every ~5 min, which wakes its wp-cron), so a site's "last seen" stays within roughly 15 minutes **even with zero visitor traffic** — previously an idle staging site could show "45+ min ago" because WordPress cron only runs on a page visit. Real-traffic sites were always fine; this fixes the idle case.

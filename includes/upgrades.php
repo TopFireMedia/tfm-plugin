@@ -44,7 +44,32 @@ function tfm_maybe_run_upgrades() {
         tfm_remove_legacy_phone_scripts();
     }
 
+    // 3.20.0 — cookie consent is inactive by default. Earlier builds seeded the
+    // banner ON for every install; turn it OFF wherever there's no provenance
+    // that the site actually used the standalone (which the handover records).
+    if (version_compare($installed, '3.20.0', '<')) {
+        tfm_cookie_consent_default_off();
+    }
+
     update_option('tfm_plugin_db_version', TFM_PLUGIN_VERSION);
+}
+
+/**
+ * Cookie consent is inactive by default; it stays on only where the standalone
+ * "TFM Cookie Consent" was active at absorption — recorded as provenance in the
+ * 'tfm_cookie_consent_activated' option by the handover. Turn the banner off on
+ * any site that has no such provenance (i.e. it was only auto-enabled by the old
+ * default). Runs before the cookie-consent frontend renders, so no banner flash.
+ */
+function tfm_cookie_consent_default_off() {
+    if (get_option('tfm_cookie_consent_activated')) {
+        return; // provenance: migrated from an active standalone — leave it on
+    }
+    $settings = get_option('tfm_cookie_consent_settings');
+    if (is_array($settings) && !empty($settings['enabled'])) {
+        $settings['enabled'] = false;
+        update_option('tfm_cookie_consent_settings', $settings);
+    }
 }
 
 /**

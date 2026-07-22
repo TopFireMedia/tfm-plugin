@@ -12,14 +12,24 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// If the standalone "TFM Cookie Consent" is still active, stay dormant this
-// request and deactivate it so TFM takes over cleanly on the next load (avoids
-// a fatal class redeclaration during the overlap).
+// If the standalone "TFM Cookie Consent" is still active, hand over: record that
+// this site was actually using cookie consent (provenance), keep the banner on,
+// then stay dormant this request while the handover deactivates the standalone
+// so TFM takes over cleanly on the next load (avoids a class redeclaration).
 if (tfm_handover_absorbed_plugin(
     array('tfm-cookie-consent.php', 'tfm-cookie-consent', 'TFM-Cookie-Consent'),
     array('TFM Cookie Consent'),
     'cookie_consent'
 )) {
+    // Cookie consent is inactive by default, but a site that had the standalone
+    // ACTIVE should keep it on. Mark it so the "off by default" migration never
+    // disables this site, and ensure the banner stays enabled.
+    update_option('tfm_cookie_consent_activated', 1);
+    $tfm_cc = get_option('tfm_cookie_consent_settings');
+    if (is_array($tfm_cc) && empty($tfm_cc['enabled'])) {
+        $tfm_cc['enabled'] = true;
+        update_option('tfm_cookie_consent_settings', $tfm_cc);
+    }
     return;
 }
 
@@ -72,7 +82,9 @@ function tfm_cookie_consent_default_options() {
     }
 
     add_option('tfm_cookie_consent_settings', array(
-        'enabled'                 => true,
+        // Off by default; on only if this site was migrated from an active
+        // standalone (provenance recorded in 'tfm_cookie_consent_activated').
+        'enabled'                 => (bool) get_option('tfm_cookie_consent_activated', false),
         'popup_title'             => __('Cookie Consent', 'tfm-cookie-consent'),
         'popup_message'           => __('This website uses cookies to ensure you get the best experience on our website.', 'tfm-cookie-consent'),
         'accept_button_text'      => __('Accept All', 'tfm-cookie-consent'),
