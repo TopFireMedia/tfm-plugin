@@ -153,6 +153,14 @@ class TFM_File_Logger {
                 throw new Exception('Failed to write to log file: ' . $this->current_log_file);
             }
 
+            /**
+             * Fires after an activity entry is written. Used by the ClickUp
+             * alerting integration to dispatch alerts for critical events.
+             *
+             * @param array $log_entry The full log entry (action, severity, user, data, …).
+             */
+            do_action('tfm_activity_logged', $log_entry);
+
             return true;
         } catch (Exception $e) {
             $this->error_log[] = $e->getMessage();

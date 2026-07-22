@@ -72,6 +72,9 @@ require_once TFM_PLUGIN_DIR . 'includes/shortcodes.php';
 require_once TFM_PLUGIN_DIR . 'includes/press-releases.php';
 require_once TFM_PLUGIN_DIR . 'includes/cookie-consent.php';
 
+// Fleet alerting (critical activity-log events -> ClickUp via the TFM relay).
+require_once TFM_PLUGIN_DIR . 'includes/clickup-alerts.php';
+
 
 // Activation hook
 register_activation_hook(__FILE__, 'tfm_activate_plugin');
