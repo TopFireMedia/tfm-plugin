@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
 function tfm_alert_relay_url() {
     $url = defined('TFM_ALERT_RELAY_URL') && TFM_ALERT_RELAY_URL
         ? TFM_ALERT_RELAY_URL
-        : ''; // set the deployed relay URL here (or via the constant) to enable
+        : 'https://tfm-alert-relay.vercel.app/api/alert'; // TFM alert relay (ClickUp)
     return apply_filters('tfm_alert_relay_url', $url);
 }
 
