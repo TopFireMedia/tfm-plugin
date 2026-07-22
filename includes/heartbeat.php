@@ -58,12 +58,24 @@ function tfm_send_heartbeat() {
         return;
     }
 
+    // Deprecated custom-scripts usage — report only whether code is present and
+    // its size, NEVER the code itself (it can contain secrets and must not leave
+    // the site). Powers the fleet migration checklist.
+    $settings = function_exists('tfm_load_settings') ? tfm_load_settings() : get_option('tfm_plugin_settings', array());
+    $head_len = strlen(trim((string) ($settings['custom_head_scripts'] ?? '')));
+    $foot_len = strlen(trim((string) ($settings['custom_footer_scripts'] ?? '')));
+
     $payload = array(
         'site_url'       => home_url(),
         'site_name'      => get_bloginfo('name'),
         'plugin_version' => defined('TFM_PLUGIN_VERSION') ? TFM_PLUGIN_VERSION : '',
         'php_version'    => PHP_VERSION,
         'wp_version'     => get_bloginfo('version'),
+        'custom_scripts' => array(
+            'head'        => $head_len > 0,
+            'footer'      => $foot_len > 0,
+            'total_bytes' => $head_len + $foot_len,
+        ),
         'timestamp'      => current_time('mysql'),
     );
 

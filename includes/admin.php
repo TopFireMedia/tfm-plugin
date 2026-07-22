@@ -675,33 +675,36 @@ function tfm_render_settings_page() {
 
             <div id="scripts" class="tfm-tab-content">
                 <div class="tfm-settings-section">
-                    <h2>Custom Scripts</h2>
-                    <p class="tfm-settings-description">Add custom JavaScript code to your site's head or footer.</p>
+                    <h2>Custom Scripts <span style="font-size:12px;font-weight:600;color:#b26200;background:#fff3e0;border:1px solid #ffcc80;border-radius:3px;padding:2px 8px;vertical-align:middle;">Deprecated</span></h2>
+                    <?php
+                    $tfm_has_head   = trim((string) ($settings['custom_head_scripts'] ?? '')) !== '';
+                    $tfm_has_footer = trim((string) ($settings['custom_footer_scripts'] ?? '')) !== '';
+                    ?>
+                    <div class="notice notice-warning inline" style="margin:0 0 16px;padding:10px 12px;">
+                        <p style="margin:.3em 0;"><strong>This feature is being retired.</strong> New scripts can no longer be added here — please use <strong>Elementor &rarr; Custom Code</strong> instead.</p>
+                        <p style="margin:.3em 0;">Any existing code below <em>still runs</em> and is shown read-only so you can copy it. Once you've moved it into Elementor and confirmed it works, tick <strong>Remove</strong> and save to clear it here.</p>
+                    </div>
                     <table class="form-table">
                         <tr>
                             <th>Custom Head Scripts</th>
                             <td>
-                                <textarea name="tfm_plugin_settings[custom_head_scripts]" rows="5" cols="50" class="large-text code"><?php echo esc_textarea($settings['custom_head_scripts']); ?></textarea>
-                                <p class="description">Add custom JavaScript or other scripts to be included in the <code>&lt;head&gt;</code> section.</p>
-                                <ul class="description-list">
-                                    <li>Include complete <code>&lt;script&gt;</code> tags with your code, or</li>
-                                    <li>Just add JavaScript code without script tags (they will be added automatically)</li>
-                                </ul>
-                                <div class="tfm-code-example">Example with tags:<br><code>&lt;script src="https://example.com/script.js"&gt;&lt;/script&gt;</code></div>
-                                <div class="tfm-code-example">Example without tags:<br><code>console.log('Hello World');</code></div>
+                                <textarea name="tfm_plugin_settings[custom_head_scripts]" rows="5" cols="50" class="large-text code" readonly onclick="this.select();" style="background:#f6f7f7;"><?php echo esc_textarea($settings['custom_head_scripts']); ?></textarea>
+                                <?php if ($tfm_has_head) : ?>
+                                <p><label><input type="checkbox" name="tfm_plugin_settings[remove_custom_head_scripts]" value="1"> <strong>Remove</strong> these head scripts (after migrating to Elementor)</label></p>
+                                <?php else : ?>
+                                <p class="description">No head scripts are set. Adding new scripts here is disabled — use Elementor &rarr; Custom Code.</p>
+                                <?php endif; ?>
                             </td>
                         </tr>
                         <tr>
                             <th>Custom Footer Scripts</th>
                             <td>
-                                <textarea name="tfm_plugin_settings[custom_footer_scripts]" rows="5" cols="50" class="large-text code"><?php echo esc_textarea($settings['custom_footer_scripts']); ?></textarea>
-                                <p class="description">Add custom JavaScript or other scripts to be included before the closing <code>&lt;/body&gt;</code> tag.</p>
-                                <ul class="description-list">
-                                    <li>Include complete <code>&lt;script&gt;</code> tags with your code, or</li>
-                                    <li>Just add JavaScript code without script tags (they will be added automatically)</li>
-                                </ul>
-                                <div class="tfm-code-example">Example with tags:<br><code>&lt;script src="https://example.com/script.js"&gt;&lt;/script&gt;</code></div>
-                                <div class="tfm-code-example">Example without tags:<br><code>console.log('Hello World');</code></div>
+                                <textarea name="tfm_plugin_settings[custom_footer_scripts]" rows="5" cols="50" class="large-text code" readonly onclick="this.select();" style="background:#f6f7f7;"><?php echo esc_textarea($settings['custom_footer_scripts']); ?></textarea>
+                                <?php if ($tfm_has_footer) : ?>
+                                <p><label><input type="checkbox" name="tfm_plugin_settings[remove_custom_footer_scripts]" value="1"> <strong>Remove</strong> these footer scripts (after migrating to Elementor)</label></p>
+                                <?php else : ?>
+                                <p class="description">No footer scripts are set. Adding new scripts here is disabled — use Elementor &rarr; Custom Code.</p>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     </table>
@@ -2224,9 +2227,18 @@ function tfm_sanitize_settings($input) {
     $log_level = $input['log_level'] ?? 'all';
     $sanitized['log_level'] = in_array($log_level, ['all', 'important', 'critical'], true) ? $log_level : 'all';
     
-    // Sanitize scripts — admin-only fields; preserve raw code exactly as entered
-    $sanitized['custom_head_scripts'] = wp_unslash($input['custom_head_scripts'] ?? '');
-    $sanitized['custom_footer_scripts'] = wp_unslash($input['custom_footer_scripts'] ?? '');
+    // Custom scripts are DEPRECATED (being retired in favor of Elementor's
+    // Custom Code area). Existing code keeps rendering, but the value is frozen:
+    // it can only be KEPT as-is or REMOVED via the explicit "Remove" checkbox —
+    // new or edited content is never accepted. Enforced here on the server so it
+    // can't be bypassed by posting directly (the read-only textarea is only for
+    // viewing/copying the code during migration).
+    $existing = get_option('tfm_plugin_settings', array());
+    foreach (array('custom_head_scripts', 'custom_footer_scripts') as $script_key) {
+        $current = isset($existing[$script_key]) ? (string) $existing[$script_key] : '';
+        $remove  = !empty($input['remove_' . $script_key]);
+        $sanitized[$script_key] = $remove ? '' : $current;
+    }
     
     // Sanitize Lead Magnet
     $sanitized['lead_magnet'] = [

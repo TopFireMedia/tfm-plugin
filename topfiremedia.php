@@ -3,7 +3,7 @@
  * Plugin Name: TFM Custom Functions
  * Plugin URI: https://topfiremedia.com
  * Description: A comprehensive plugin for TFM functionality including logging, video optimization, and more.
- * Version: 3.18.2
+ * Version: 3.19.0
  * Author: TopFireMedia
  * Author URI: https://topfiremedia.com
  * Text Domain: topfiremedia
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('TFM_PLUGIN_VERSION', '3.18.2');
+define('TFM_PLUGIN_VERSION', '3.19.0');
 define('TFM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TFM_PLUGIN_URL', plugin_dir_url(__FILE__));
 

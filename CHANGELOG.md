@@ -2,6 +2,12 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.19.0 — begin retiring the custom-scripts feature
+_Phase 1 of sunsetting the plugin's custom head/footer scripts in favor of Elementor's Custom Code area. Nothing breaks — existing code keeps running; new input is frozen; a migration checklist is added._
+- **Custom head/footer scripts are now frozen.** Existing scripts still render exactly as before, but the fields are **read-only** — no new or edited code can be saved. This is enforced **server-side** (the save handler only ever keeps the current value or clears it), not just in the UI, so it can't be bypassed by posting directly. The tab shows a "Deprecated" notice pointing to Elementor &rarr; Custom Code.
+- **Removal is allowed.** Each field has a **Remove** checkbox so a site's code can be cleared once it's been migrated.
+- **Fleet migration checklist.** The heartbeat now reports whether a site still has custom scripts and their total size — **metadata only; the code itself never leaves the site** (it can contain secrets). The dashboard shows a **"Custom code"** column, a count of sites still to migrate, and a "Needs migration" filter, so the rollout can be tracked to zero. Once no site reports custom code, the feature can be removed entirely (a later release).
+
 ## 3.18.2 — hands-off updates & absorbed-plugin file cleanup
 - **Background auto-updates for the plugin.** TFM Custom Functions now updates itself on WordPress's own schedule, so a published release rolls out across the fleet within hours with no per-site action. Pull-based (each site fetches from the TFM repo over HTTPS) — it adds no inbound endpoint or new attack surface. On by default; opt out on a specific site with `define('TFM_DISABLE_AUTO_UPDATE', true);` or the `tfm_enable_auto_update` filter.
 - **Absorbed standalones are now fully removed, not just deactivated.** After the handover deactivates an absorbed standalone (Press Release Manager / TFM Cookie Consent), the plugin deletes its leftover files too. Conservative by design: it only ever deletes plugins TFM itself queued during handover and only once they're inactive, it never scans or guesses, it defers silently if the host filesystem isn't directly writable, and the removal is recorded in the activity log.
