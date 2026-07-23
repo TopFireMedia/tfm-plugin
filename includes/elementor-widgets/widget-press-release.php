@@ -1339,12 +1339,14 @@ class Elementor_PRM_Widget extends \Elementor\Widget_Base {
 
     private function render_card($settings) {
         $post_id = get_the_ID();
-        $external_url = get_field('external_url', $post_id);
+        // Read fields from post meta (ACF/SCF stores them there under the same
+        // keys), so press releases render with or without SCF installed.
+        $external_url = get_post_meta($post_id, 'external_url', true);
         $thumbnail = get_the_post_thumbnail($post_id, $settings['image_size']);
         $aspect_ratio_class = 'prm-aspect-' . $settings['image_aspect_ratio'];
 
-        $show_source = $settings['show_source'] === 'yes' && get_field('source_name', $post_id);
-        $show_date = $settings['show_date'] === 'yes' && get_field('release_date', $post_id);
+        $show_source = $settings['show_source'] === 'yes' && get_post_meta($post_id, 'source_name', true);
+        $show_date = $settings['show_date'] === 'yes' && get_post_meta($post_id, 'release_date', true);
         $has_meta = $show_source || $show_date;
         ?>
         <div class="prm-card">
@@ -1377,13 +1379,13 @@ class Elementor_PRM_Widget extends \Elementor\Widget_Base {
                     <div class="prm-card-meta">
                         <?php if ($show_source) : ?>
                             <span class="prm-source">
-                                <?php the_field('source_name', $post_id); ?>
+                                <?php echo esc_html(get_post_meta($post_id, 'source_name', true)); ?>
                             </span>
                         <?php endif; ?>
 
                         <?php if ($show_date) : ?>
                             <span class="prm-date">
-                                <?php echo $this->format_release_date(get_field('release_date', $post_id)); ?>
+                                <?php echo $this->format_release_date(get_post_meta($post_id, 'release_date', true)); ?>
                             </span>
                         <?php endif; ?>
                     </div>
@@ -1396,6 +1398,15 @@ class Elementor_PRM_Widget extends \Elementor\Widget_Base {
     private function format_release_date($date_string) {
         if (empty($date_string)) {
             return 'Date not available';
+        }
+
+        // ACF/SCF stores date-picker values raw as Ymd (e.g. 20260723); that's
+        // what get_post_meta() returns.
+        if (ctype_digit($date_string) && strlen($date_string) === 8) {
+            $datetime = DateTime::createFromFormat('Ymd', $date_string);
+            if ($datetime !== false) {
+                return $datetime->format('M j, Y');
+            }
         }
 
         // Handle different date formats from ACF

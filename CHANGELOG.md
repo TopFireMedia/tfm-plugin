@@ -2,6 +2,12 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.21.0 — press releases no longer require Secure Custom Fields
+- **Made SCF/ACF optional for Press Releases** (it was the *only* feature in the plugin using it, and only for four simple fields: external URL, source name, release date, featured flag).
+  - The Elementor "Press Release Grid" widget now reads those fields with `get_post_meta()` (ACF/SCF already stored them there under the same keys), so it renders **with or without SCF installed**.
+  - Added a **native meta box** for editing the fields that appears **only when SCF is not active** — when SCF is present, its field group is used instead, so there's no duplicate box.
+  - Data is preserved exactly: same meta keys, dates stored in ACF's `Ymd` format, so existing press releases, sort order, and templates are unchanged — and **SCF can now be uninstalled fleet-wide** without breaking press releases. No full SCF rebuild.
+
 ## 3.20.0 — cookie consent inactive by default
 - **The cookie-consent banner is now off by default.** Earlier builds seeded it **on** for every install, so sites that never used cookie consent got a banner. Now it's enabled only where the site actually used it: when the absorb handover deactivates an **active** standalone "TFM Cookie Consent", it records provenance and keeps the banner on; every other install defaults to off. A one-time migration turns the banner off on any site that was only auto-enabled by the old default (sites with provenance are preserved). It can still be enabled per-site from the plugin settings. _Rule: off by default, but if it was active in the old standalone plugin it stays active._
 
