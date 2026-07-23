@@ -72,7 +72,10 @@ function tfm_send_heartbeat() {
 
     $payload = array(
         'site_url'       => home_url(),
-        'site_name'      => get_bloginfo('name'),
+        // Decode HTML entities so names with apostrophes/ampersands aren't stored
+        // pre-encoded (get_bloginfo returns e.g. "Joe&#039;s", which then double-
+        // encodes in the dashboard).
+        'site_name'      => html_entity_decode(get_bloginfo('name'), ENT_QUOTES),
         'plugin_version' => defined('TFM_PLUGIN_VERSION') ? TFM_PLUGIN_VERSION : '',
         'php_version'    => PHP_VERSION,
         'wp_version'     => get_bloginfo('version'),
@@ -81,6 +84,10 @@ function tfm_send_heartbeat() {
             'footer'      => $foot_len > 0,
             'total_bytes' => $head_len + $foot_len,
         ),
+        // Whether Secure Custom Fields / ACF is active (the only thing that used
+        // it was Press Releases, now optional) — powers the "safe to remove SCF"
+        // fleet view.
+        'scf_active'     => function_exists('acf_add_local_field_group'),
         'timestamp'      => current_time('mysql'),
     );
 

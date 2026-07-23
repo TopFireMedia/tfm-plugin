@@ -2,6 +2,11 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.22.0 — SCF fleet visibility, ping-based up/down, name-display fix
+- **Heartbeat now reports whether Secure Custom Fields / ACF is active**, so the fleet dashboard can show an "SCF active" column, count, and filter — a checklist of where SCF can still be removed (now that Press Releases no longer need it).
+- **Site name is sent decoded**, fixing names with apostrophes or ampersands that showed as raw HTML entities (e.g. `&#039;`) on the dashboard. The dashboard also decodes defensively, so existing entries display correctly right away.
+- **Up/down is now decided by directly pinging each site** (relay change), not by whether the site phoned home. A ping is authoritative and doesn't depend on the site getting traffic, so status is far more reliable; a site is only flagged down after consecutive failed pings, and "last seen" reflects the last successful contact.
+
 ## 3.21.0 — press releases no longer require Secure Custom Fields
 - **Made SCF/ACF optional for Press Releases** (it was the *only* feature in the plugin using it, and only for four simple fields: external URL, source name, release date, featured flag).
   - The Elementor "Press Release Grid" widget now reads those fields with `get_post_meta()` (ACF/SCF already stored them there under the same keys), so it renders **with or without SCF installed**.
