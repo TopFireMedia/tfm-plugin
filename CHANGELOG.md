@@ -2,6 +2,9 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.24.0 — force dev sites to noindex
+- **Development sites can never be indexed.** Any `tfmstaging.com` subdomain (or the apex) now has search-engine indexing forced **off** and locked — WordPress behaves as noindex regardless of the stored setting, and Settings → Reading can't re-enable it. The stored value is normalized to 0 too (so Plesk, the settings screen, and the heartbeat all agree), with an explanatory notice on the Reading screen. Live sites are unaffected. Detection is overridable via the `tfm_is_dev_site` filter.
+
 ## 3.23.0 — report search-engine indexing state to the fleet dashboard
 - **The heartbeat now reports whether search-engine indexing is on** (WordPress Settings → Reading → "Discourage search engines", i.e. the `blog_public` option — the same thing Plesk shows). The fleet dashboard gains an **"Index"** column (On / Off / — for not-yet-reporting), a **count of sites with indexing off**, and an **"Indexing off" filter** — so a live site accidentally left non-indexable (noindex) is easy to spot. Staging sites are expected to show Off; the value is for eyeballing production sites.
 
