@@ -88,6 +88,10 @@ function tfm_send_heartbeat() {
         // it was Press Releases, now optional) — powers the "safe to remove SCF"
         // fleet view.
         'scf_active'     => function_exists('acf_add_local_field_group'),
+        // Search-engine indexing state (WP Settings → Reading → "Discourage
+        // search engines"). blog_public = 1 means indexing is allowed; 0 means
+        // discouraged (noindex). Flags live sites accidentally left non-indexable.
+        'search_indexing' => (bool) get_option('blog_public', 1),
         'timestamp'      => current_time('mysql'),
     );
 

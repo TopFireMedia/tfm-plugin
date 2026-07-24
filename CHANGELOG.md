@@ -2,6 +2,9 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.23.0 — report search-engine indexing state to the fleet dashboard
+- **The heartbeat now reports whether search-engine indexing is on** (WordPress Settings → Reading → "Discourage search engines", i.e. the `blog_public` option — the same thing Plesk shows). The fleet dashboard gains an **"Index"** column (On / Off / — for not-yet-reporting), a **count of sites with indexing off**, and an **"Indexing off" filter** — so a live site accidentally left non-indexable (noindex) is easy to spot. Staging sites are expected to show Off; the value is for eyeballing production sites.
+
 ## 3.22.0 — SCF fleet visibility, ping-based up/down, name-display fix
 - **Heartbeat now reports whether Secure Custom Fields / ACF is active**, so the fleet dashboard can show an "SCF active" column, count, and filter — a checklist of where SCF can still be removed (now that Press Releases no longer need it).
 - **Site name is sent decoded**, fixing names with apostrophes or ampersands that showed as raw HTML entities (e.g. `&#039;`) on the dashboard. The dashboard also decodes defensively, so existing entries display correctly right away.
