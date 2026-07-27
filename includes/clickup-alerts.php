@@ -39,7 +39,10 @@ function tfm_alert_actions() {
         'theme_switched',
         'user_role_changed',
         'user_deleted',
-        'user_login_failed',
+        // Note: user_login_failed is intentionally NOT alerted — failed logins are
+        // constant automated bot traffic on every WordPress site (the relay also
+        // mutes it as a backstop). Re-add via the 'tfm_alert_actions' filter if
+        // a specific site needs it.
         'post_deleted',
         'core_updated',
     ));

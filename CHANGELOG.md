@@ -2,6 +2,9 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.25.0 — stop alerting failed logins to ClickUp
+- **Failed logins no longer create ClickUp alerts.** They're constant automated bot traffic on every WordPress site, so the volume was overwhelming and useless as a signal. Removed `user_login_failed` from the alerted actions (still recorded in the activity log; re-add per-site via the `tfm_alert_actions` filter if ever needed). The relay also mutes it as a backstop, so the noise stopped fleet-wide immediately.
+
 ## 3.24.0 — force dev sites to noindex
 - **Development sites can never be indexed.** Any `tfmstaging.com` subdomain (or the apex) now has search-engine indexing forced **off** and locked — WordPress behaves as noindex regardless of the stored setting, and Settings → Reading can't re-enable it. The stored value is normalized to 0 too (so Plesk, the settings screen, and the heartbeat all agree), with an explanatory notice on the Reading screen. Live sites are unaffected. Detection is overridable via the `tfm_is_dev_site` filter.
 
