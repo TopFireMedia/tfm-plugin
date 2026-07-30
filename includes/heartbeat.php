@@ -15,26 +15,44 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Add a 10-minute cron interval.
+/**
+ * The heartbeat interval, overridable per site via the 'tfm_heartbeat_interval'
+ * filter (seconds). 20 minutes: the relay's datastore bills per command, and
+ * across the fleet the heartbeat is by far the largest consumer. Freshness costs
+ * little here because up/down is decided by the monitor's direct ping, not by
+ * the heartbeat — a site is only declared down after 45 minutes without contact,
+ * so a 20-minute heartbeat still gives two chances inside that window.
+ */
+function tfm_heartbeat_interval() {
+    $seconds = (int) apply_filters('tfm_heartbeat_interval', 20 * MINUTE_IN_SECONDS);
+    // Keep it sane: never faster than 5 minutes, never slower than the monitor's
+    // 45-minute down threshold.
+    return max(5 * MINUTE_IN_SECONDS, min(45 * MINUTE_IN_SECONDS, $seconds));
+}
+
 add_filter('cron_schedules', function ($schedules) {
+    $seconds = tfm_heartbeat_interval();
+    $schedules['tfm_heartbeat'] = array(
+        'interval' => $seconds,
+        'display'  => sprintf('Every %d Minutes (TFM heartbeat)', max(1, (int) round($seconds / 60))),
+    );
+    // Retained so sites still holding an event on the old schedule have a valid
+    // definition until the migration below moves them across.
     if (!isset($schedules['tfm_ten_minutes'])) {
         $schedules['tfm_ten_minutes'] = array(
             'interval' => 10 * MINUTE_IN_SECONDS,
-            'display'  => 'Every 10 Minutes (TFM)',
+            'display'  => 'Every 10 Minutes (TFM, legacy)',
         );
     }
     return $schedules;
 });
 
-// Ensure the heartbeat is scheduled on the 10-minute interval, migrating sites
-// still on the previous 15-minute schedule.
+// Ensure the heartbeat is on the current schedule, migrating sites still on the
+// earlier 15-minute and 10-minute ones.
 add_action('init', function () {
-    $schedule = wp_get_schedule('tfm_heartbeat_event');
-    if ($schedule !== 'tfm_ten_minutes') {
-        if ($schedule !== false) {
-            wp_clear_scheduled_hook('tfm_heartbeat_event');
-        }
-        wp_schedule_event(time() + MINUTE_IN_SECONDS, 'tfm_ten_minutes', 'tfm_heartbeat_event');
+    if (wp_get_schedule('tfm_heartbeat_event') !== 'tfm_heartbeat') {
+        wp_clear_scheduled_hook('tfm_heartbeat_event');
+        wp_schedule_event(time() + MINUTE_IN_SECONDS, 'tfm_heartbeat', 'tfm_heartbeat_event');
     }
 });
 add_action('tfm_heartbeat_event', 'tfm_send_heartbeat');

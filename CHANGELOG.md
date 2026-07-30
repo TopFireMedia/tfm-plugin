@@ -26,6 +26,32 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.27.0 — heartbeat every 20 minutes instead of 10
+
+The relay's datastore (Upstash) bills per command and has a 500,000/month
+ceiling on its plan. Fleet usage reached 885,000 and Upstash began rejecting
+requests, which took the dashboard and the down-alerting offline. Across the
+fleet the heartbeat was the single largest consumer.
+
+- **Heartbeat interval 10 min -> 20 min.** Halves the plugin's share of the
+  budget. Freshness costs little: up/down is decided by the relay's direct ping,
+  not by the heartbeat, and a site is only declared down after 45 minutes
+  without contact — so a 20-minute heartbeat still gives two chances inside that
+  window. This reverses the 3.19.2 change, which lowered it to 10 minutes for
+  fresher "last seen" before the per-command cost was understood.
+- **Interval is now filterable** via `tfm_heartbeat_interval` (seconds), clamped
+  between 5 and 45 minutes so a site can't be set to hammer the relay or drift
+  past the down threshold.
+- The schedule was renamed `tfm_ten_minutes` -> `tfm_heartbeat`; the old
+  definition is retained so sites still holding an event on it stay valid until
+  the migration moves them across on the next `init`.
+
+Relay-side changes made alongside this (see tfm-alert-relay): the dashboard now
+fetches all sites in one `MGET` rather than one `GET` each and refreshes every
+5 minutes rather than 60 seconds, the heartbeat endpoint only writes set
+membership on first contact, and the monitor polls every 5 minutes instead of 2.
+Combined projection: ~2,082K commands/month down to ~214K.
+
 ## 3.26.1 — "Do Not Sell or Share" is now an actual opt-out
 
 - **`[tfm_do_not_sell]` opts the visitor out in one click.** It previously emitted the same `data-tfm-tc-action="preferences"` as `[tfm_consent_link]`, so both links merely opened the preferences panel — identical behaviour with a different label. The `tfm-tc-dns` class it added had no JavaScript and no CSS behind it, and the docblock's claim that it "opens preferences with advertising highlighted" was never implemented. An opt-out link that requires opening a panel, finding a toggle and saving is more steps than it should be. It now withdraws the Advertising and Personalization categories directly — the ones that constitute a sale or share — and preserves whatever the visitor already chose for Analytics and Functional, which are business purposes rather than a sale. Pass `mode="preferences"` for the old behaviour.
