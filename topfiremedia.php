@@ -72,6 +72,9 @@ require_once TFM_PLUGIN_DIR . 'includes/shortcodes.php';
 // Absorbed team plugins.
 require_once TFM_PLUGIN_DIR . 'includes/press-releases.php';
 require_once TFM_PLUGIN_DIR . 'includes/cookie-consent.php';
+// Supersedes cookie-consent above: real prior-consent blocking, Consent Mode v2
+// and consent receipts. Loaded after it so the conflict notice can see both.
+require_once TFM_PLUGIN_DIR . 'includes/tracking-consent.php';
 
 // Fleet alerting (critical activity-log events -> ClickUp via the TFM relay).
 require_once TFM_PLUGIN_DIR . 'includes/clickup-alerts.php';

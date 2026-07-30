@@ -55,44 +55,77 @@ function tfm_heartbeat_endpoint() {
 }
 
 /**
- * Cookie consent state for the heartbeat.
+ * Count non-empty, non-comment lines in a newline-separated pattern list.
+ */
+function tfm_heartbeat_count_patterns($raw) {
+    if (empty($raw) || !is_string($raw)) {
+        return 0;
+    }
+    $n = 0;
+    foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
+        $line = trim($line);
+        if ('' !== $line && 0 !== strpos($line, '#')) {
+            $n++;
+        }
+    }
+    return $n;
+}
+
+/**
+ * Consent state for the heartbeat.
  *
- * Booleans only — no banner copy, no blocked-script patterns. The patterns are
- * only vendor hostnames, but there is no fleet-view reason to ship them and the
- * heartbeat keeps to the "report state, never content" rule used for custom
- * scripts.
+ * Two consent systems can be present: TFM Tracking Consent (current) and the
+ * older TFM Cookie Consent (deprecated). Tracking Consent wins when enabled;
+ * otherwise the older module is reported so sites mid-migration still show
+ * accurately. `system` records which one the numbers came from.
+ *
+ * Field names are deliberately shared between the two so the relay and the
+ * fleet dashboard need no per-system branching.
+ *
+ * Booleans and counts only — never the banner copy or the blocked-script
+ * patterns themselves, following the same "report state, never content" rule as
+ * custom_scripts.
  *
  * `enforcing` is the field worth alerting on: a banner that is shown but backed
  * by nothing is worse than no banner, because it represents a choice to the
  * visitor that the site does not honour.
  */
 function tfm_heartbeat_cookie_consent_state() {
+    $tc = get_option('tfm_tc_settings', array());
     $cc = get_option('tfm_cookie_consent_settings', array());
-    if (!is_array($cc)) {
-        $cc = array();
-    }
+    $tc = is_array($tc) ? $tc : array();
+    $cc = is_array($cc) ? $cc : array();
 
-    $banner        = !empty($cc['enabled']);
-    $consent_mode  = !empty($cc['consent_mode']);
-    $block_scripts = !empty($cc['prior_blocking']);
-    $block_iframes = !empty($cc['block_iframes']);
-
-    $patterns = 0;
-    if (!empty($cc['blocked_script_patterns'])) {
-        foreach (preg_split('/\r\n|\r|\n/', $cc['blocked_script_patterns']) as $line) {
-            $line = trim($line);
-            if ('' !== $line && 0 !== strpos($line, '#')) {
-                $patterns++;
-            }
-        }
+    if (!empty($tc['enabled'])) {
+        $banner        = true;
+        $consent_mode  = !empty($tc['consent_mode']);
+        $block_scripts = !empty($tc['blocking_enabled']);
+        $block_iframes = !empty($tc['block_iframes']);
+        $respect_gpc   = !empty($tc['respect_gpc']);
+        $patterns      = tfm_heartbeat_count_patterns($tc['custom_patterns'] ?? '');
+        $system        = 'tracking';
+        // Receipts are unique to Tracking Consent; useful for spotting sites
+        // with a banner but no proof-of-consent record.
+        $receipts      = !empty($tc['logging_enabled']);
+    } else {
+        $banner        = !empty($cc['enabled']);
+        $consent_mode  = !empty($cc['consent_mode']);
+        $block_scripts = !empty($cc['prior_blocking']);
+        $block_iframes = !empty($cc['block_iframes']);
+        $respect_gpc   = !empty($cc['respect_gpc']);
+        $patterns      = tfm_heartbeat_count_patterns($cc['blocked_script_patterns'] ?? '');
+        $system        = $banner ? 'cookie' : 'none';
+        $receipts      = false;
     }
 
     return array(
+        'system'         => $system,
         'banner'         => $banner,
         'consent_mode'   => $consent_mode,
         'prior_blocking' => $block_scripts,
         'block_iframes'  => $block_iframes,
-        'respect_gpc'    => !empty($cc['respect_gpc']),
+        'respect_gpc'    => $respect_gpc,
+        'receipts'       => $receipts,
         'patterns'       => $patterns,
         // True only when the banner is shown AND something actually acts on the
         // visitor's choice. False with banner true = needs attention.

@@ -106,7 +106,6 @@ class TFM_Cookie_Consent_Admin {
                         <a href="#colors" class="nav-tab"><?php _e('Colors', 'tfm-cookie-consent'); ?></a>
                         <a href="#categories" class="nav-tab"><?php _e('Cookie Categories', 'tfm-cookie-consent'); ?></a>
                         <a href="#integrations" class="nav-tab"><?php _e('Integrations', 'tfm-cookie-consent'); ?></a>
-                        <a href="#enforcement" class="nav-tab"><?php _e('Enforcement', 'tfm-cookie-consent'); ?></a>
                         <a href="#analytics" class="nav-tab"><?php _e('Analytics', 'tfm-cookie-consent'); ?></a>
                         <a href="#blocked" class="nav-tab"><?php _e('Cookie Discovery', 'tfm-cookie-consent'); ?></a>
                         <a href="#advanced" class="nav-tab"><?php _e('Advanced', 'tfm-cookie-consent'); ?></a>
@@ -679,81 +678,6 @@ class TFM_Cookie_Consent_Admin {
                         <?php endif; ?>
                     </div>
                     
-                    <!-- Enforcement Tab -->
-                    <div id="enforcement" class="tab-content">
-                        <p class="description" style="margin:12px 0 18px;">
-                            <strong><?php _e('These settings are what make the banner actually do something.', 'tfm-cookie-consent'); ?></strong><br>
-                            <?php _e('Without them the banner records a preference but tracking scripts still load and transmit. Verify the site after enabling Prior Blocking — embeds and tags will not render until the visitor consents.', 'tfm-cookie-consent'); ?>
-                        </p>
-                        <table class="form-table">
-                            <tr>
-                                <th scope="row"><label for="consent_mode"><?php _e('Google Consent Mode v2', 'tfm-cookie-consent'); ?></label></th>
-                                <td>
-                                    <input type="checkbox" id="consent_mode" name="tfm_cookie_consent_settings[consent_mode]" value="1" <?php checked(!empty($settings['consent_mode'])); ?>>
-                                    <p class="description"><?php _e('Signals consent state to Google before any tag loads. Required by Google for EEA/UK traffic on Ads and GA4 — without it those conversions are discarded. Safe to leave on: it does not block anything.', 'tfm-cookie-consent'); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="consent_mode_region"><?php _e('Restrict to regions', 'tfm-cookie-consent'); ?></label></th>
-                                <td>
-                                    <input type="text" id="consent_mode_region" name="tfm_cookie_consent_settings[consent_mode_region]" class="regular-text" value="<?php echo esc_attr(isset($settings['consent_mode_region']) ? $settings['consent_mode_region'] : ''); ?>" placeholder="GB,DE,FR">
-                                    <p class="description"><?php _e('Comma-separated ISO country codes. Leave empty to apply denied-by-default worldwide, which is the safer choice for US state privacy laws.', 'tfm-cookie-consent'); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="consent_mode_url_passthrough"><?php _e('URL passthrough', 'tfm-cookie-consent'); ?></label></th>
-                                <td>
-                                    <input type="checkbox" id="consent_mode_url_passthrough" name="tfm_cookie_consent_settings[consent_mode_url_passthrough]" value="1" <?php checked(!empty($settings['consent_mode_url_passthrough'])); ?>>
-                                    <p class="description"><?php _e('Preserves ad click IDs across pages when storage is denied, so conversion measurement degrades gracefully instead of disappearing.', 'tfm-cookie-consent'); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="consent_mode_ads_data_redaction"><?php _e('Ads data redaction', 'tfm-cookie-consent'); ?></label></th>
-                                <td>
-                                    <input type="checkbox" id="consent_mode_ads_data_redaction" name="tfm_cookie_consent_settings[consent_mode_ads_data_redaction]" value="1" <?php checked(!isset($settings['consent_mode_ads_data_redaction']) || $settings['consent_mode_ads_data_redaction']); ?>>
-                                    <p class="description"><?php _e('Strips ad identifiers from network requests while advertising consent is denied.', 'tfm-cookie-consent'); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="prior_blocking"><?php _e('Prior blocking (scripts)', 'tfm-cookie-consent'); ?></label></th>
-                                <td>
-                                    <input type="checkbox" id="prior_blocking" name="tfm_cookie_consent_settings[prior_blocking]" value="1" <?php checked(!empty($settings['prior_blocking'])); ?>>
-                                    <p class="description"><?php _e('Rewrites third-party tracking scripts so the browser never fetches or runs them until the matching category is granted. This is the setting that stops data leaving before consent.', 'tfm-cookie-consent'); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="block_iframes"><?php _e('Prior blocking (iframes)', 'tfm-cookie-consent'); ?></label></th>
-                                <td>
-                                    <input type="checkbox" id="block_iframes" name="tfm_cookie_consent_settings[block_iframes]" value="1" <?php checked(!empty($settings['block_iframes'])); ?>>
-                                    <p class="description"><?php _e('Holds back YouTube, Vimeo and Google Maps embeds until consent. Note that YouTube sets advertising cookies on page load even if no video is played.', 'tfm-cookie-consent'); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="respect_gpc"><?php _e('Honour Global Privacy Control', 'tfm-cookie-consent'); ?></label></th>
-                                <td>
-                                    <input type="checkbox" id="respect_gpc" name="tfm_cookie_consent_settings[respect_gpc]" value="1" <?php checked(!empty($settings['respect_gpc'])); ?>>
-                                    <p class="description"><?php _e('Treats a browser GPC signal as an opt-out of sale/sharing without requiring interaction. California treats GPC as a valid opt-out.', 'tfm-cookie-consent'); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="blocked_script_patterns"><?php _e('Additional scripts to block', 'tfm-cookie-consent'); ?></label></th>
-                                <td>
-                                    <textarea id="blocked_script_patterns" name="tfm_cookie_consent_settings[blocked_script_patterns]" rows="6" class="large-text code" placeholder="ksrndkehqnwntyxlhgto.com|marketing&#10;iconnode.com|marketing"><?php echo esc_textarea(isset($settings['blocked_script_patterns']) ? $settings['blocked_script_patterns'] : ''); ?></textarea>
-                                    <p class="description">
-                                        <?php _e('One per line as <code>needle|category</code>. The needle is matched as a substring against each script src and inline body. Category is analytics, marketing or functional (defaults to marketing).', 'tfm-cookie-consent'); ?><br>
-                                        <?php _e('Needed for vendors that serve from rotating hostnames — WhatConverts and similar CDN-fronted tags will not match the built-in list.', 'tfm-cookie-consent'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><?php _e('Withdraw-consent link', 'tfm-cookie-consent'); ?></th>
-                                <td>
-                                    <p class="description"><?php _e('Use the shortcode <code>[tfm_privacy_choices]</code> in your footer to render a "Your Privacy Choices" control that reopens this banner. US state privacy laws expect a persistent link of this kind.', 'tfm-cookie-consent'); ?></p>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-
                     <!-- Advanced Tab -->
                     <div id="advanced" class="tab-content">
                         <table class="form-table">
@@ -898,24 +822,7 @@ class TFM_Cookie_Consent_Admin {
         // Advanced
         $sanitized['debug_mode'] = isset($input['debug_mode']) ? true : false;
         $sanitized['custom_scripts'] = wp_kses($input['custom_scripts'], array());
-
-        // Enforcement
-        $sanitized['consent_mode']                    = isset($input['consent_mode']) ? true : false;
-        $sanitized['consent_mode_url_passthrough']    = isset($input['consent_mode_url_passthrough']) ? true : false;
-        $sanitized['consent_mode_ads_data_redaction'] = isset($input['consent_mode_ads_data_redaction']) ? true : false;
-        $sanitized['prior_blocking']                  = isset($input['prior_blocking']) ? true : false;
-        $sanitized['block_iframes']                   = isset($input['block_iframes']) ? true : false;
-        $sanitized['respect_gpc']                     = isset($input['respect_gpc']) ? true : false;
-
-        // Comma-separated ISO region codes, e.g. "GB,DE,FR". Empty = global.
-        $region = isset($input['consent_mode_region']) ? sanitize_text_field($input['consent_mode_region']) : '';
-        $sanitized['consent_mode_region'] = preg_replace('/[^A-Za-z0-9,\-]/', '', $region);
-
-        // "needle|category" per line. Kept as plain text — these are matched as
-        // substrings against script src/content, never executed or output.
-        $patterns = isset($input['blocked_script_patterns']) ? (string) $input['blocked_script_patterns'] : '';
-        $sanitized['blocked_script_patterns'] = sanitize_textarea_field($patterns);
-
+        
         return $sanitized;
     }
     

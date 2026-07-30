@@ -2,31 +2,49 @@
 
 Running record of all work done on the plugin. Newest first.
 
-## 3.26.0 — cookie consent actually enforces consent
+## 3.26.0 — absorb TFM Tracking Consent; fix the old consent module
 
-Found while producing a data-collection inventory for a client's counsel: the banner recorded preferences but never acted on them. Three separate faults, all fixed.
+Started as an enforcement layer bolted onto the existing cookie-consent module. On finding that a separate standalone plugin — **TFM Tracking Consent 1.0.0**, live on ivykidsfranchise.com — already solved the same problem better, that work was discarded and the standalone absorbed instead. Comparison notes are at the bottom.
 
-- **Fixed fatal JavaScript syntax error in cookie blocking.** `add_cookie_blocking_script_early()` opened an `else {` block that was never closed, so the entire inline blocking script failed to parse with "Unexpected end of input". The `document.cookie` override was therefore **never installed on any site** — verified in a headless browser against a live site, where `Object.getOwnPropertyDescriptor(document, 'cookie')` returned undefined and no TFM blocking log appeared. This code has never worked since it shipped.
-- **Fixed settings being silently wiped on save.** `sanitize_settings()` rebuilt the settings array from scratch and returned only the keys it explicitly knew about, so any key added elsewhere was destroyed on every save of the settings page. It now starts from the stored option and overwrites known keys (still forcing checkboxes to `false` when absent, since unchecked boxes are never POSTed).
-- **Removed two unconditional `console.log` calls** that ran on every page load regardless of debug mode.
+### Absorbed: TFM Tracking Consent
 
-New enforcement layer (`class-tfm-cookie-consent-enforcement.php`):
+Now lives under `includes/tracking-consent/`, loaded by `includes/tracking-consent.php`, using the same `tfm_handover_absorbed_plugin()` handover as cookie-consent and press-releases. Option name (`tfm_tc_settings`), class names and text domain are preserved, so a site running the standalone keeps its configuration and simply stops loading the separate plugin.
 
-- **Google Consent Mode v2.** Emits the `gtag` stub and `consent`/`default` state at `wp_head` priority 0, ahead of any Google tag, then pushes `consent`/`update` on choice. Covers `ad_storage`, `ad_user_data`, `ad_personalization`, `analytics_storage`, `functionality_storage`, `personalization_storage`. Defaults are computed client-side from stored consent in the same inline block, so returning visitors don't get a denied→granted flicker. Optional region scoping, `url_passthrough`, and `ads_data_redaction`. Google requires this for EEA/UK Ads and GA4 traffic — without it those conversions were being discarded.
-- **Prior blocking.** Third-party `<script>` tags are rewritten to `type="text/plain"` with a `data-tfm-consent` category, which per the HTML spec means the browser neither fetches nor executes them. Applies to enqueued scripts via `script_loader_tag` and to hardcoded/inline tags via an output-buffer pass. Matching covers src and inline body, so snippet signatures like `gtag('config'`, `fbq('init'` and `$wc_leads` are caught too. Blocking is unconditional server-side and released client-side — it fails closed.
-- **Configurable patterns.** `needle|category` lines in the new Enforcement tab, for vendors served from rotating hostnames that the built-in list cannot match. WhatConverts is the motivating case: it ships from a randomised CloudFront domain specifically to evade blockers, so no cookie scanner flags it.
-- **Iframe blocking.** YouTube, Vimeo and Google Maps embeds have `src` moved to `data-tfm-src` until consent. YouTube sets five advertising cookies on page load even when no video is played.
-- **Global Privacy Control.** Honours the `Sec-GPC` request header and `navigator.globalPrivacyControl` as a standing opt-out of sale/sharing, overriding a stored marketing grant. The marketing toggle is locked off in the UI when detected.
-- **`[tfm_privacy_choices]` shortcode** rendering the "Your Privacy Choices" control US state privacy laws expect, which reopens the banner so consent can be withdrawn.
-- **Consent now persists across sessions.** It was written to `sessionStorage` only, so the banner re-prompted on every new browser session and no choice survived a restart. Now stored in `localStorage` with an explicit expiry derived from the existing expiry-days setting; `sessionStorage` is still read so previously-consented visitors aren't re-prompted.
+What it does that the old module never did:
 
-Fleet visibility:
+- **Three-layer prior-consent blocking.** Server-side tag rewrite to `type="text/plain"` with `src` moved to `data-tfm-tc-src`, a `document.createElement` gate that catches trackers injected at runtime by other scripts, and a MutationObserver fallback. The `createElement` gate matters on these sites: a server-side rewrite alone cannot stop an Elementor video widget building a YouTube player after page load.
+- **Cache-safe by construction.** Blocking is identical for every visitor and unblocking happens in the browser, so page caches stay correct. Verified live on ivykidsfranchise.com behind NitroPack.
+- **Google Consent Mode v2** with all six storage signals plus `wait_for_update`, reading the consent cookie so returning visitors get correct defaults without a denied-then-granted flicker. GTM can run strict (container never loads pre-consent) or in Consent Mode.
+- **26-service built-in registry** plus per-site `needle|category` patterns for vendors served from rotating hostnames.
+- **Consent receipts** — action, categories, consent version, salted one-way IP hash (raw IPs never stored), truncated user agent. Rate-limited REST endpoint, admin viewer, CSV export.
+- **Shortcodes**: `[tfm_consent_button]`, `[tfm_consent_link]`, `[tfm_do_not_sell]` (CCPA/CPRA), `[tfm_cookie_declaration]` (auto-generated category/service table for privacy policies).
+- **Global Privacy Control** honoured as an opt-out; five categories; accessible dialog with focus management; Elementor Pro template support.
 
-- **Heartbeat now reports cookie consent state.** New `cookie_consent` block with `banner`, `consent_mode`, `prior_blocking`, `block_iframes`, `respect_gpc`, a `patterns` count, and a derived `enforcing` flag. `enforcing` is the one to surface: `banner: true` with `enforcing: false` means the site shows a consent banner that nothing acts on — the state every site was in before this release. Booleans and a count only; the blocked-script patterns themselves are not transmitted, following the same "report state, never content" rule as `custom_scripts`. Makes the post-deploy spot-check list generate itself instead of being assembled by hand.
+Ported in from the discarded work, being the only two things it did better:
 
-**Upgrade behaviour: this update changes nothing on any live site.** Every enforcement setting is off by default and must be switched on deliberately per site from the Enforcement tab. There is no migration routine — with the new keys absent the `empty()` checks already evaluate to off, so upgrading writes nothing to the database and alters no behaviour. The banner's own `enabled` flag is never touched, and on sites where the banner is off the enforcement class registers zero hooks and does not run at all.
+- **`url_passthrough` is now a setting.** It was hardcoded `false`. When on, ad click IDs survive between pages while storage is denied, so conversion measurement degrades instead of vanishing. Off by default — it rewrites outbound links.
+- **Optional region scoping** for the denied default (`GB,DE,FR`). Empty means deny worldwide, which stays the default because US state laws expect it.
 
-The bug fixes above do change behaviour, but only on sites that already had the banner enabled: cookie blocking will start working where it previously failed silently. Worth spot-checking those sites after updating.
+### Fixed in the old cookie-consent module
+
+It is now deprecated in favour of the above, but two real bugs are fixed since 30 sites still hold its option:
+
+- **Fatal JavaScript syntax error.** `add_cookie_blocking_script_early()` opened an `else {` that was never closed, so the whole inline blocking script failed to parse with "Unexpected end of input" and the `document.cookie` override was **never installed on any site** since it shipped. Verified in a headless browser against a live site: `getOwnPropertyDescriptor(document,'cookie')` returned undefined and no TFM blocking log appeared.
+- **Settings silently wiped on save.** `sanitize_settings()` rebuilt the array from scratch and returned only keys it knew about, destroying anything else on every save. Same class of bug as the 3.12.11 News regression. Now starts from the stored option, still forcing checkboxes to `false` when absent since unchecked boxes are never POSTed.
+- Removed two `console.log` calls that ran on every page load regardless of debug mode.
+
+An admin notice warns if both consent systems are enabled at once.
+
+### Fleet visibility
+
+- **Heartbeat reports consent state** in a `cookie_consent` block: `system` (`tracking`/`cookie`/`none`), `banner`, `consent_mode`, `prior_blocking`, `block_iframes`, `respect_gpc`, `receipts`, a `patterns` count, and a derived `enforcing`. Tracking Consent wins when enabled, otherwise the legacy module is reported, so sites mid-migration read accurately. Booleans and counts only — never banner copy or pattern hostnames, matching the `custom_scripts` rule. The relay recomputes `enforcing` rather than trusting it.
+- The fleet monitor gained a Consent column, a "Consent not enforced" stat and filter (see tfm-alert-relay).
+
+### Upgrade behaviour
+
+**This release changes nothing on any live site.** Tracking Consent ships disabled: the standalone defaulted to `enabled => 1` because activating it was itself the opt-in, but absorbed it arrives everywhere at once, so it is forced off unless the site was migrated from an active standalone (provenance in `tfm_tc_activated`). There is no migration routine for the old module either — with its enforcement keys absent, every check already reads as off.
+
+The one real behaviour change is on sites that already had the **old** banner enabled: its cookie blocking will start working where it previously failed silently. Currently that is zero sites on the VPS — a wp-cli sweep of all 33 WordPress installs found the old banner off everywhere.
 
 ## 3.25.0 — stop alerting failed logins to ClickUp
 - **Failed logins no longer create ClickUp alerts.** They're constant automated bot traffic on every WordPress site, so the volume was overwhelming and useless as a signal. Removed `user_login_failed` from the alerted actions (still recorded in the activity log; re-add per-site via the `tfm_alert_actions` filter if ever needed). The relay also mutes it as a backstop, so the noise stopped fleet-wide immediately.

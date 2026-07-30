@@ -1,0 +1,24 @@
+/**
+ * TFM Tracking Consent — admin styles.
+ */
+
+.tfm-tc-wrap .tfm-tc-tab {
+	display: none;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-top: 0;
+	padding: 4px 20px 20px;
+}
+
+.tfm-tc-wrap .tfm-tc-tab.is-active {
+	display: block;
+}
+
+.tfm-tc-wrap .tfm-tc-tabs {
+	margin-bottom: 0;
+}
+
+.tfm-tc-service {
+	display: inline-block;
+	margin: 0 0 4px;
+}
