@@ -22,7 +22,14 @@ class TFM_Logging_Hooks {
     private function init_hooks() {
         // Authentication
         add_action('wp_login', [$this, 'log_user_login'], 10, 2);
-        add_action('wp_login_failed', [$this, 'log_login_failed']);
+        // Failed logins are constant automated bot traffic on every WordPress
+        // site — they were flooding the (capped) activity log and crowding out
+        // the real accountability events it exists for. Not logged by default;
+        // re-enable per-site with:
+        //   add_filter('tfm_log_failed_logins', '__return_true');
+        if (apply_filters('tfm_log_failed_logins', false)) {
+            add_action('wp_login_failed', [$this, 'log_login_failed']);
+        }
         add_action('wp_logout', [$this, 'log_user_logout']);
 
         // User account changes

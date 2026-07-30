@@ -1937,8 +1937,9 @@ function tfm_render_logs_page() {
         TFM_PLUGIN_VERSION
     );
     
-    // Get logs
-    $raw_logs = ($tfm_logger instanceof TFM_File_Logger) ? $tfm_logger->get_logs(500) : [];
+    // Get logs (filterable; raised from 500 now that failed-login noise is gone).
+    $tfm_log_limit = (int) apply_filters('tfm_activity_log_view_limit', 1000);
+    $raw_logs = ($tfm_logger instanceof TFM_File_Logger) ? $tfm_logger->get_logs($tfm_log_limit) : [];
     usort($raw_logs, function ($a, $b) {
         $timeA = isset($a['timestamp']) ? strtotime($a['timestamp']) : 0;
         $timeB = isset($b['timestamp']) ? strtotime($b['timestamp']) : 0;

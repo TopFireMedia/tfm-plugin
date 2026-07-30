@@ -26,6 +26,11 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.28.0 — stop logging failed logins (they were flooding the activity log)
+
+- **Failed logins are no longer written to the activity log.** They're constant automated bot traffic on every WordPress site, and because the log viewer shows a capped window of recent entries, failed-login spam was crowding out the real accountability events the log exists for — leaving only ~a day of useful history. Removing them restores days/weeks of real activity. (They were already dropped from ClickUp alerts in 3.25.0; this does the same for the on-site log.) Re-enable per-site with `add_filter('tfm_log_failed_logins', '__return_true')`. Failed logins remain the job of a dedicated security plugin (e.g. Wordfence).
+- **Activity-log viewer raised from 500 to 1000 entries** (filterable via `tfm_activity_log_view_limit`), for more history at a glance now that the noise is gone.
+
 ## 3.27.0 — heartbeat every 20 minutes instead of 10
 
 The relay's datastore (Upstash) bills per command and has a 500,000/month
