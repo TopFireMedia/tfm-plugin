@@ -26,6 +26,10 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.29.0 — purge the existing failed-login backlog from the activity log
+
+- **One-time cleanup strips the existing `user_login_failed` entries from the activity-log files.** 3.28.0 stopped writing new ones, but the historical spam still filled the files and dominated the recent view until it aged out. This rewrites each monthly log file keeping only the real events, so the log shows meaningful accountability history immediately. Only touches a file that actually contains failed-login entries; other entries and the file format are preserved. Combined with the 500 → 1000 viewer limit from 3.28.0, far more real activity is now visible at once.
+
 ## 3.28.0 — stop logging failed logins (they were flooding the activity log)
 
 - **Failed logins are no longer written to the activity log.** They're constant automated bot traffic on every WordPress site, and because the log viewer shows a capped window of recent entries, failed-login spam was crowding out the real accountability events the log exists for — leaving only ~a day of useful history. Removing them restores days/weeks of real activity. (They were already dropped from ClickUp alerts in 3.25.0; this does the same for the on-site log.) Re-enable per-site with `add_filter('tfm_log_failed_logins', '__return_true')`. Failed logins remain the job of a dedicated security plugin (e.g. Wordfence).

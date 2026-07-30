@@ -51,7 +51,55 @@ function tfm_maybe_run_upgrades() {
         tfm_cookie_consent_default_off();
     }
 
+    // 3.29.0 — 3.28.0 stopped logging new failed logins, but the existing
+    // failed-login spam still sits in the log files and dominates the recent
+    // view. Strip it out once so the activity log immediately shows real events.
+    if (version_compare($installed, '3.29.0', '<')) {
+        tfm_purge_failed_login_logs();
+    }
+
     update_option('tfm_plugin_db_version', TFM_PLUGIN_VERSION);
+}
+
+/**
+ * One-time cleanup: remove existing 'user_login_failed' entries from the activity
+ * log files. The log is one JSON object per line in wp-content/uploads/tfm-logs/;
+ * this rewrites each monthly file keeping only the non-failed-login lines. Only
+ * touches a file if it actually contains failed-login entries.
+ */
+function tfm_purge_failed_login_logs() {
+    $upload_dir = wp_upload_dir();
+    if (empty($upload_dir['basedir'])) {
+        return;
+    }
+    $dir   = trailingslashit($upload_dir['basedir']) . 'tfm-logs/';
+    $files = glob($dir . 'wordpress-activity-*.log');
+    if (empty($files)) {
+        return;
+    }
+
+    foreach ($files as $file) {
+        if (!is_writable($file)) {
+            continue;
+        }
+        $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines === false) {
+            continue;
+        }
+        $kept    = array();
+        $removed = 0;
+        foreach ($lines as $line) {
+            $entry = json_decode($line, true);
+            if (is_array($entry) && isset($entry['action']) && $entry['action'] === 'user_login_failed') {
+                $removed++;
+                continue;
+            }
+            $kept[] = $line;
+        }
+        if ($removed > 0) {
+            file_put_contents($file, $kept ? implode("\n", $kept) . "\n" : '', LOCK_EX);
+        }
+    }
 }
 
 /**
