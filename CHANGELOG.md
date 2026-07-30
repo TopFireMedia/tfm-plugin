@@ -2,6 +2,30 @@
 
 Running record of all work done on the plugin. Newest first.
 
+---
+
+## Scheduled removals / technical debt
+
+Standing list. Remove items from here when they ship.
+
+- **Remove the legacy cookie-consent module (`includes/cookie-consent.php` + `includes/cookie-consent/`).**
+  Superseded by TFM Tracking Consent in 3.26.0. 11 files, ~4,614 lines. Its blocking script never
+  parsed (see the 3.26.0 notes), its consent log is a capped autoloaded option, and consent lived in
+  `sessionStorage` so it expired every session. Kept for one release only so the fleet can report in.
+  **Gate before deleting:** the fleet monitor's Consent column shows zero sites as "Legacy"
+  (i.e. no site reports `cookie_consent.system == "cookie"`). Also remove: the legacy fallback branch
+  in `tfm_heartbeat_cookie_consent_state()`, `tfm_tracking_consent_conflict_notice()`, and
+  `tfm_cookie_consent_default_off()` in `upgrades.php`. **Target: 3.27.0.**
+
+- **Custom block patterns carry no display label.** Stored as `domain|category`, so custom-blocked
+  vendors never appear in `[tfm_cookie_declaration]` — a site relying on custom rules publishes an
+  incomplete declaration. Proposed format `domain|category|Label`. **Target: 3.27.0.**
+
+- **firstdayaba.com and senioragroupfranchising.com are stuck on 3.22.0**, four releases behind.
+  Not update-check lag. Likely `TFM_DISABLE_AUTO_UPDATE`, a filter, or repeatedly failing updates.
+
+---
+
 ## 3.26.1 — "Do Not Sell or Share" is now an actual opt-out
 
 - **`[tfm_do_not_sell]` opts the visitor out in one click.** It previously emitted the same `data-tfm-tc-action="preferences"` as `[tfm_consent_link]`, so both links merely opened the preferences panel — identical behaviour with a different label. The `tfm-tc-dns` class it added had no JavaScript and no CSS behind it, and the docblock's claim that it "opens preferences with advertising highlighted" was never implemented. An opt-out link that requires opening a panel, finding a toggle and saving is more steps than it should be. It now withdraws the Advertising and Personalization categories directly — the ones that constitute a sale or share — and preserves whatever the visitor already chose for Analytics and Functional, which are business purposes rather than a sale. Pass `mode="preferences"` for the old behaviour.
