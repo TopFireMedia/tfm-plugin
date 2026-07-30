@@ -55,6 +55,52 @@ function tfm_heartbeat_endpoint() {
 }
 
 /**
+ * Cookie consent state for the heartbeat.
+ *
+ * Booleans only — no banner copy, no blocked-script patterns. The patterns are
+ * only vendor hostnames, but there is no fleet-view reason to ship them and the
+ * heartbeat keeps to the "report state, never content" rule used for custom
+ * scripts.
+ *
+ * `enforcing` is the field worth alerting on: a banner that is shown but backed
+ * by nothing is worse than no banner, because it represents a choice to the
+ * visitor that the site does not honour.
+ */
+function tfm_heartbeat_cookie_consent_state() {
+    $cc = get_option('tfm_cookie_consent_settings', array());
+    if (!is_array($cc)) {
+        $cc = array();
+    }
+
+    $banner        = !empty($cc['enabled']);
+    $consent_mode  = !empty($cc['consent_mode']);
+    $block_scripts = !empty($cc['prior_blocking']);
+    $block_iframes = !empty($cc['block_iframes']);
+
+    $patterns = 0;
+    if (!empty($cc['blocked_script_patterns'])) {
+        foreach (preg_split('/\r\n|\r|\n/', $cc['blocked_script_patterns']) as $line) {
+            $line = trim($line);
+            if ('' !== $line && 0 !== strpos($line, '#')) {
+                $patterns++;
+            }
+        }
+    }
+
+    return array(
+        'banner'         => $banner,
+        'consent_mode'   => $consent_mode,
+        'prior_blocking' => $block_scripts,
+        'block_iframes'  => $block_iframes,
+        'respect_gpc'    => !empty($cc['respect_gpc']),
+        'patterns'       => $patterns,
+        // True only when the banner is shown AND something actually acts on the
+        // visitor's choice. False with banner true = needs attention.
+        'enforcing'      => $banner && ($consent_mode || $block_scripts || $block_iframes),
+    );
+}
+
+/**
  * Send a heartbeat to the relay.
  */
 function tfm_send_heartbeat() {
@@ -92,6 +138,13 @@ function tfm_send_heartbeat() {
         // search engines"). blog_public = 1 means indexing is allowed; 0 means
         // discouraged (noindex). Flags live sites accidentally left non-indexable.
         'search_indexing' => (bool) get_option('blog_public', 1),
+        // Cookie consent state, per-flag. `banner` is the headline: which sites
+        // actually show a consent banner. The rest report whether the banner is
+        // backed by real enforcement — a banner with everything else false asks
+        // for a choice it does not act on, which is the state every site was in
+        // before 3.26.0. Powers the fleet cookie-consent view and makes the
+        // post-deploy spot-check list self-generating.
+        'cookie_consent' => tfm_heartbeat_cookie_consent_state(),
         'timestamp'      => current_time('mysql'),
     );
 

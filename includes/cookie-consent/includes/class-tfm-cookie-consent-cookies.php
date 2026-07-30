@@ -260,7 +260,9 @@ class TFM_Cookie_Consent_Cookies {
         if (window.tfmCookieBlockingInitialized) {
             // Already initialized, exit
         } else {
-            console.log('TFM Cookie Consent: Initializing cookie blocking...');
+            if (window.tfmCookieConsentDebug) {
+                console.log('TFM Cookie Consent: Initializing cookie blocking...');
+            }
             // Block cookies until consent is given
             (function() {
             // Check if consent exists and what type
@@ -312,8 +314,6 @@ class TFM_Cookie_Consent_Cookies {
                     console.log('TFM Cookie Consent: No consent found, blocking cookies');
                 }
             }
-            
-            console.log('TFM Cookie Consent: No consent found, blocking cookies');
             
             // Store original cookie setter
             var originalCookie = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
@@ -498,6 +498,7 @@ class TFM_Cookie_Consent_Cookies {
             }
             window.tfmCookieBlockingInitialized = true;
         })();
+        }
         </script>
         <?php
     }

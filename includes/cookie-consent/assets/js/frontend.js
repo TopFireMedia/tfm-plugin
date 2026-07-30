@@ -41,9 +41,27 @@
          * Initialize frontend functionality
          */
         init: function() {
+            var self = this;
             this.settings = tfm_cookie_consent.settings;
             this.loadConsentData();
-            
+
+            // "Your Privacy Choices" and any other withdraw-consent control.
+            window.tfmCookieConsentReopen = function() {
+                self.showPopup();
+            };
+
+            // A Global Privacy Control signal is a standing opt-out of
+            // sale/sharing. Reflect it in the UI so the marketing toggle cannot
+            // be switched on; enforcement itself lives in tfmConsentApply().
+            if (window.tfmGpcActive) {
+                var $marketing = $('.tfm-cookie-consent__category[data-category="marketing"]');
+                $marketing.find('input[type="checkbox"]').prop('checked', false).prop('disabled', true);
+                $marketing.addClass('tfm-cookie-consent__category--gpc-locked');
+                if (window.tfmCookieConsentDebug) {
+                    console.log('TFM Cookie Consent: GPC signal detected, marketing locked off');
+                }
+            }
+
             if (!this.hasValidConsent()) {
                 this.showPopup();
                 // Test cookie blocking
@@ -51,34 +69,47 @@
             } else {
                 this.handleExistingConsent();
             }
-            
+
             this.bindEvents();
             this.applyCustomColors();
         },
 
         /**
-         * Load consent data from sessionStorage
+         * Load consent data.
+         *
+         * localStorage is authoritative so a choice survives a browser restart;
+         * sessionStorage is still read so visitors who consented under an older
+         * plugin version are not re-prompted.
          */
         loadConsentData: function() {
             try {
-                var stored = sessionStorage.getItem('tfm_cookie_consent');
+                var stored = localStorage.getItem('tfm_cookie_consent') ||
+                             sessionStorage.getItem('tfm_cookie_consent');
                 if (stored) {
                     this.consentData = JSON.parse(stored);
                 }
             } catch (e) {
-                console.warn('Error loading consent data from sessionStorage:', e);
+                if (window.tfmCookieConsentDebug) {
+                    console.warn('TFM Cookie Consent: error loading consent data:', e);
+                }
             }
         },
 
         /**
-         * Save consent data to sessionStorage
+         * Persist consent data with an explicit expiry, to both stores.
          */
         saveConsentData: function(data) {
             try {
-                sessionStorage.setItem('tfm_cookie_consent', JSON.stringify(data));
+                var days = (this.settings && this.settings.expiry_days) ? this.settings.expiry_days : 365;
+                data.expires = Date.now() + (days * 24 * 60 * 60 * 1000);
+                var json = JSON.stringify(data);
+                try { localStorage.setItem('tfm_cookie_consent', json); } catch (e) {}
+                try { sessionStorage.setItem('tfm_cookie_consent', json); } catch (e) {}
                 this.consentData = data;
             } catch (e) {
-                console.warn('Error saving consent data to sessionStorage:', e);
+                if (window.tfmCookieConsentDebug) {
+                    console.warn('TFM Cookie Consent: error saving consent data:', e);
+                }
             }
         },
 
@@ -323,6 +354,19 @@
          * Execute actions based on consent
          */
         executeConsentActions: function(consentData) {
+            // Push the Consent Mode v2 update and release any tags the visitor
+            // has now allowed. This is what actually enforces the choice — the
+            // cookie-jar handling below is a secondary safety net.
+            if (typeof window.tfmConsentApply === 'function') {
+                var granted = consentData.categories || {};
+                if (consentData.all_accepted) {
+                    granted = { analytics: true, marketing: true, functional: true };
+                } else if (consentData.all_denied) {
+                    granted = { analytics: false, marketing: false, functional: false };
+                }
+                window.tfmConsentApply(granted);
+            }
+
             // Handle cookie enabling based on consent type
             if (consentData.all_denied) {
                 // All cookies denied - keep blocking

@@ -52,11 +52,13 @@ function tfm_cookie_consent_init() {
     require_once $base . 'class-tfm-cookie-consent-ajax.php';
     require_once $base . 'class-tfm-cookie-consent-settings.php';
     require_once $base . 'class-tfm-cookie-consent-cookies.php';
+    require_once $base . 'class-tfm-cookie-consent-enforcement.php';
 
     new TFM_Cookie_Consent_Admin();
     new TFM_Cookie_Consent_Frontend();
     new TFM_Cookie_Consent_Ajax();
     new TFM_Cookie_Consent_Cookies();
+    new TFM_Cookie_Consent_Enforcement();
 }
 add_action('init', 'tfm_cookie_consent_init');
 
@@ -122,6 +124,24 @@ function tfm_cookie_consent_default_options() {
         'google_tag_manager'      => false,
         'facebook_pixel'          => false,
         'custom_scripts'          => '',
+
+        // Enforcement — off by default, everywhere. Updating the plugin must
+        // never change what a live site does; each of these is switched on
+        // deliberately per site from the Enforcement tab.
+        //
+        // There is intentionally no migration routine for existing sites: with
+        // these keys absent the empty() checks in the enforcement class already
+        // evaluate to off, so an upgrade writes nothing and changes nothing.
+        'consent_mode'                    => false,
+        'consent_mode_region'             => '',
+        'consent_mode_url_passthrough'    => true,
+        'consent_mode_ads_data_redaction' => true,
+        'prior_blocking'                  => false,
+        'block_iframes'                   => false,
+        // Inert until consent_mode or prior_blocking is on; true so that GPC is
+        // honoured correctly whenever enforcement does get enabled.
+        'respect_gpc'                     => true,
+        'blocked_script_patterns'         => '',
     ));
 }
 add_action('init', 'tfm_cookie_consent_default_options', 5);
