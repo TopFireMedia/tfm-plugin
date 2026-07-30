@@ -761,8 +761,13 @@ class TFM_Cookie_Consent_Admin {
      * Sanitize settings
      */
     public function sanitize_settings($input) {
-        $sanitized = array();
-        
+        // Start from the stored settings so keys this method does not know about
+        // survive a save. Every known key is overwritten below — including
+        // checkboxes, which must be forced to false when absent from $input
+        // because unchecked boxes are never POSTed.
+        $existing  = get_option('tfm_cookie_consent_settings', array());
+        $sanitized = is_array($existing) ? $existing : array();
+
         // General settings
         $sanitized['enabled'] = isset($input['enabled']) ? true : false;
         $sanitized['expiry_days'] = absint($input['expiry_days']);

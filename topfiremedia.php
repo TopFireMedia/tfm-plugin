@@ -3,7 +3,7 @@
  * Plugin Name: TFM Custom Functions
  * Plugin URI: https://topfiremedia.com
  * Description: A comprehensive plugin for TFM functionality including logging, video optimization, and more.
- * Version: 3.25.0
+ * Version: 3.26.0
  * Author: TopFireMedia
  * Author URI: https://topfiremedia.com
  * Text Domain: topfiremedia
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('TFM_PLUGIN_VERSION', '3.25.0');
+define('TFM_PLUGIN_VERSION', '3.26.0');
 define('TFM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TFM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -72,6 +72,9 @@ require_once TFM_PLUGIN_DIR . 'includes/shortcodes.php';
 // Absorbed team plugins.
 require_once TFM_PLUGIN_DIR . 'includes/press-releases.php';
 require_once TFM_PLUGIN_DIR . 'includes/cookie-consent.php';
+// Supersedes cookie-consent above: real prior-consent blocking, Consent Mode v2
+// and consent receipts. Loaded after it so the conflict notice can see both.
+require_once TFM_PLUGIN_DIR . 'includes/tracking-consent.php';
 
 // Fleet alerting (critical activity-log events -> ClickUp via the TFM relay).
 require_once TFM_PLUGIN_DIR . 'includes/clickup-alerts.php';

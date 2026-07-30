@@ -55,6 +55,85 @@ function tfm_heartbeat_endpoint() {
 }
 
 /**
+ * Count non-empty, non-comment lines in a newline-separated pattern list.
+ */
+function tfm_heartbeat_count_patterns($raw) {
+    if (empty($raw) || !is_string($raw)) {
+        return 0;
+    }
+    $n = 0;
+    foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
+        $line = trim($line);
+        if ('' !== $line && 0 !== strpos($line, '#')) {
+            $n++;
+        }
+    }
+    return $n;
+}
+
+/**
+ * Consent state for the heartbeat.
+ *
+ * Two consent systems can be present: TFM Tracking Consent (current) and the
+ * older TFM Cookie Consent (deprecated). Tracking Consent wins when enabled;
+ * otherwise the older module is reported so sites mid-migration still show
+ * accurately. `system` records which one the numbers came from.
+ *
+ * Field names are deliberately shared between the two so the relay and the
+ * fleet dashboard need no per-system branching.
+ *
+ * Booleans and counts only — never the banner copy or the blocked-script
+ * patterns themselves, following the same "report state, never content" rule as
+ * custom_scripts.
+ *
+ * `enforcing` is the field worth alerting on: a banner that is shown but backed
+ * by nothing is worse than no banner, because it represents a choice to the
+ * visitor that the site does not honour.
+ */
+function tfm_heartbeat_cookie_consent_state() {
+    $tc = get_option('tfm_tc_settings', array());
+    $cc = get_option('tfm_cookie_consent_settings', array());
+    $tc = is_array($tc) ? $tc : array();
+    $cc = is_array($cc) ? $cc : array();
+
+    if (!empty($tc['enabled'])) {
+        $banner        = true;
+        $consent_mode  = !empty($tc['consent_mode']);
+        $block_scripts = !empty($tc['blocking_enabled']);
+        $block_iframes = !empty($tc['block_iframes']);
+        $respect_gpc   = !empty($tc['respect_gpc']);
+        $patterns      = tfm_heartbeat_count_patterns($tc['custom_patterns'] ?? '');
+        $system        = 'tracking';
+        // Receipts are unique to Tracking Consent; useful for spotting sites
+        // with a banner but no proof-of-consent record.
+        $receipts      = !empty($tc['logging_enabled']);
+    } else {
+        $banner        = !empty($cc['enabled']);
+        $consent_mode  = !empty($cc['consent_mode']);
+        $block_scripts = !empty($cc['prior_blocking']);
+        $block_iframes = !empty($cc['block_iframes']);
+        $respect_gpc   = !empty($cc['respect_gpc']);
+        $patterns      = tfm_heartbeat_count_patterns($cc['blocked_script_patterns'] ?? '');
+        $system        = $banner ? 'cookie' : 'none';
+        $receipts      = false;
+    }
+
+    return array(
+        'system'         => $system,
+        'banner'         => $banner,
+        'consent_mode'   => $consent_mode,
+        'prior_blocking' => $block_scripts,
+        'block_iframes'  => $block_iframes,
+        'respect_gpc'    => $respect_gpc,
+        'receipts'       => $receipts,
+        'patterns'       => $patterns,
+        // True only when the banner is shown AND something actually acts on the
+        // visitor's choice. False with banner true = needs attention.
+        'enforcing'      => $banner && ($consent_mode || $block_scripts || $block_iframes),
+    );
+}
+
+/**
  * Send a heartbeat to the relay.
  */
 function tfm_send_heartbeat() {
@@ -92,6 +171,13 @@ function tfm_send_heartbeat() {
         // search engines"). blog_public = 1 means indexing is allowed; 0 means
         // discouraged (noindex). Flags live sites accidentally left non-indexable.
         'search_indexing' => (bool) get_option('blog_public', 1),
+        // Cookie consent state, per-flag. `banner` is the headline: which sites
+        // actually show a consent banner. The rest report whether the banner is
+        // backed by real enforcement — a banner with everything else false asks
+        // for a choice it does not act on, which is the state every site was in
+        // before 3.26.0. Powers the fleet cookie-consent view and makes the
+        // post-deploy spot-check list self-generating.
+        'cookie_consent' => tfm_heartbeat_cookie_consent_state(),
         'timestamp'      => current_time('mysql'),
     );
 
