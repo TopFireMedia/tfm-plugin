@@ -26,6 +26,10 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.31.0 — report update health to the fleet dashboard
+
+- **The heartbeat now reports why a site might be stuck behind:** whether auto-update is enabled, and whether a GitHub token is set (a leftover token 401s against the public repo and silently blocks update checks — the likely cause of a site being stranded on an old version). The fleet dashboard gains an **"Updates"** column (Auto / Auto off / Token set / —), an **"Update issues"** count, and a matching filter, so a stranded site is flagged at a glance instead of found by accident.
+
 ## 3.30.0 — paginate the full activity-log history
 
 - **The activity log viewer now pages through all recorded history**, not just the most recent window. Added server-side **Newer / Older** navigation with a running total ("Showing X–Y of Z events"), backed by a new `count_logs()` on the logger (streams line-by-line, low memory). Within each window, DataTables still provides its own paging, search, filter, and sort. Window size stays filterable via `tfm_activity_log_view_limit` (default 1000). Replaces the old fixed "most recent 500/1000 only" behavior.

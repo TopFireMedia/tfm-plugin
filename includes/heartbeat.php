@@ -167,6 +167,13 @@ function tfm_send_heartbeat() {
     $head_len = strlen(trim((string) ($settings['custom_head_scripts'] ?? '')));
     $foot_len = strlen(trim((string) ($settings['custom_footer_scripts'] ?? '')));
 
+    // Update health — surfaces why a site might be stuck behind: auto-update
+    // switched off, or a leftover GitHub token (which can 401 against the public
+    // repo and silently block update checks). Mirrors the updater/auto-update logic.
+    $auto_update_on   = !(defined('TFM_DISABLE_AUTO_UPDATE') && TFM_DISABLE_AUTO_UPDATE);
+    $auto_update_on   = (bool) apply_filters('tfm_enable_auto_update', $auto_update_on);
+    $update_token_set = (defined('TFM_GITHUB_TOKEN') && TFM_GITHUB_TOKEN) ? true : !empty($settings['github_token']);
+
     $payload = array(
         'site_url'       => home_url(),
         // Decode HTML entities so names with apostrophes/ampersands aren't stored
@@ -189,6 +196,10 @@ function tfm_send_heartbeat() {
         // search engines"). blog_public = 1 means indexing is allowed; 0 means
         // discouraged (noindex). Flags live sites accidentally left non-indexable.
         'search_indexing' => (bool) get_option('blog_public', 1),
+        // Update health (see above) — powers the dashboard's "why is this site
+        // behind?" flags.
+        'auto_update'      => $auto_update_on,
+        'update_token_set' => $update_token_set,
         // Cookie consent state, per-flag. `banner` is the headline: which sites
         // actually show a consent banner. The rest report whether the banner is
         // backed by real enforcement — a banner with everything else false asks
