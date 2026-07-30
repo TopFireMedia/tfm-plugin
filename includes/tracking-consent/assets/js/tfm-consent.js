@@ -363,6 +363,46 @@
 		return cats;
 	}
 
+	/**
+	 * CCPA/CPRA "Do Not Sell or Share" — a single click must effect the opt-out.
+	 *
+	 * Withdraws only the categories that constitute a sale or share
+	 * (advertising, personalization) and preserves whatever the visitor already
+	 * chose for the rest, since analytics and functional are business purposes.
+	 * Because there may be no panel open, it confirms out loud — otherwise the
+	 * link would appear to do nothing.
+	 */
+	function doNotSell() {
+		var existing = readConsent();
+		var current = existing ? existing.cats : {};
+		var next = { necessary: true };
+		CATS.forEach(function (cat) {
+			next[cat] = (cat === 'advertising' || cat === 'personalization') ? false : !!current[cat];
+		});
+		decide(next, 'do_not_sell');
+		announce(cfg.optOutText || 'You have been opted out of the sale and sharing of your personal information.');
+	}
+
+	/**
+	 * Transient, screen-reader-announced confirmation. Built here rather than
+	 * templated so it works on any page the shortcode is dropped on.
+	 */
+	function announce(message) {
+		var el = document.getElementById('tfm-tc-toast');
+		if (!el) {
+			el = document.createElement('div');
+			el.id = 'tfm-tc-toast';
+			el.className = 'tfm-tc-toast';
+			el.setAttribute('role', 'status');
+			el.setAttribute('aria-live', 'polite');
+			document.body.appendChild(el);
+		}
+		el.textContent = message;
+		el.classList.add('is-visible');
+		if (el._t) { clearTimeout(el._t); }
+		el._t = setTimeout(function () { el.classList.remove('is-visible'); }, 6000);
+	}
+
 	function onAction(action) {
 		switch (action) {
 			case 'accept':
@@ -373,6 +413,9 @@
 				break;
 			case 'save':
 				decide(collectToggles(), 'save_preferences');
+				break;
+			case 'optout':
+				doNotSell();
 				break;
 			case 'preferences':
 				openPreferences();

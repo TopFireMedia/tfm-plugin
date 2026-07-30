@@ -127,6 +127,9 @@ class TFM_TC_Frontend {
 			'restUrl'     => esc_url_raw( rest_url( 'tfm-tc/v1/log' ) ),
 			'iframeText'  => __( 'This embedded content is blocked until you allow the related cookies.', 'tfm-tracking-consent' ),
 			'iframeBtn'   => __( 'Allow and load', 'tfm-tracking-consent' ),
+			// Confirmation shown after the one-click "Do Not Sell or Share"
+			// opt-out, which may fire with no panel open.
+			'optOutText'  => __( 'You have been opted out of the sale and sharing of your personal information.', 'tfm-tracking-consent' ),
 		);
 
 		/**

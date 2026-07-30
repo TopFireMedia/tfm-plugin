@@ -2,6 +2,12 @@
 
 Running record of all work done on the plugin. Newest first.
 
+## 3.26.1 — "Do Not Sell or Share" is now an actual opt-out
+
+- **`[tfm_do_not_sell]` opts the visitor out in one click.** It previously emitted the same `data-tfm-tc-action="preferences"` as `[tfm_consent_link]`, so both links merely opened the preferences panel — identical behaviour with a different label. The `tfm-tc-dns` class it added had no JavaScript and no CSS behind it, and the docblock's claim that it "opens preferences with advertising highlighted" was never implemented. An opt-out link that requires opening a panel, finding a toggle and saving is more steps than it should be. It now withdraws the Advertising and Personalization categories directly — the ones that constitute a sale or share — and preserves whatever the visitor already chose for Analytics and Functional, which are business purposes rather than a sale. Pass `mode="preferences"` for the old behaviour.
+- **Added a confirmation toast.** The link usually lives in a footer with no panel open, and `decide()` ends by hiding the banner, so clicking it previously produced no visible feedback at all. The confirmation is `role="status"` with `aria-live="polite"`, and honours `prefers-reduced-motion`.
+- **`do_not_sell` added to the consent-receipt allow-list.** The REST endpoint validates the action against a fixed list, so opt-out receipts would have been rejected with a 400 and lost. The `action` column is `VARCHAR(20)`, so the value fits.
+
 ## 3.26.0 — absorb TFM Tracking Consent; fix the old consent module
 
 Started as an enforcement layer bolted onto the existing cookie-consent module. On finding that a separate standalone plugin — **TFM Tracking Consent 1.0.0**, live on ivykidsfranchise.com — already solved the same problem better, that work was discarded and the standalone absorbed instead. Comparison notes are at the bottom.

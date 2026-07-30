@@ -125,7 +125,7 @@ class TFM_TC_Consent_Log {
 		set_transient( $rl_key, $count + 1, HOUR_IN_SECONDS );
 
 		$action = $request->get_param( 'action' );
-		if ( ! in_array( $action, array( 'accept_all', 'reject_all', 'save_preferences', 'gpc' ), true ) ) {
+		if ( ! in_array( $action, array( 'accept_all', 'reject_all', 'save_preferences', 'gpc', 'do_not_sell' ), true ) ) {
 			return new WP_Error( 'tfm_tc_bad_action', __( 'Invalid action.', 'tfm-tracking-consent' ), array( 'status' => 400 ) );
 		}
 
