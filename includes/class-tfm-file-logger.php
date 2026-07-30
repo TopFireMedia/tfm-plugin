@@ -406,6 +406,33 @@ class TFM_File_Logger {
         return array_slice($logs, $offset, $limit);
     }
 
+    /**
+     * Total number of log entries across all monthly files. Streams line-by-line
+     * (low memory) so it's safe on large files. Used to paginate the viewer.
+     *
+     * @return int
+     */
+    public function count_logs() {
+        $total = 0;
+        $files = glob($this->log_directory . 'wordpress-activity-*.log');
+        if ($files === false) {
+            return 0;
+        }
+        foreach ($files as $file) {
+            $fh = @fopen($file, 'r');
+            if (!$fh) {
+                continue;
+            }
+            while (($line = fgets($fh)) !== false) {
+                if (trim($line) !== '') {
+                    $total++;
+                }
+            }
+            fclose($fh);
+        }
+        return $total;
+    }
+
     public function purge_logs($days_to_keep = 30) {
         $files = glob($this->log_directory . 'wordpress-activity-*.log');
         if ($files === false) {

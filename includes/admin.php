@@ -1937,14 +1937,47 @@ function tfm_render_logs_page() {
         TFM_PLUGIN_VERSION
     );
     
-    // Get logs (filterable; raised from 500 now that failed-login noise is gone).
-    $tfm_log_limit = (int) apply_filters('tfm_activity_log_view_limit', 1000);
-    $raw_logs = ($tfm_logger instanceof TFM_File_Logger) ? $tfm_logger->get_logs($tfm_log_limit) : [];
+    // Server-side windowed pagination. Each page loads a window of $per_page
+    // entries at $offset; DataTables paginates/searches within that window, and
+    // the Newer/Older links move the window across the full history.
+    $per_page = (int) apply_filters('tfm_activity_log_view_limit', 1000);
+    if ($per_page < 1) {
+        $per_page = 1000;
+    }
+    $log_offset  = isset($_GET['log_offset']) ? max(0, (int) $_GET['log_offset']) : 0;
+    $total_logs  = ($tfm_logger instanceof TFM_File_Logger) ? $tfm_logger->count_logs() : 0;
+    // Snap the offset onto a page boundary and keep it in range.
+    if ($log_offset >= $total_logs && $total_logs > 0) {
+        $log_offset = (int) (floor(max(0, $total_logs - 1) / $per_page) * $per_page);
+    }
+    $raw_logs = ($tfm_logger instanceof TFM_File_Logger) ? $tfm_logger->get_logs($per_page, $log_offset) : [];
     usort($raw_logs, function ($a, $b) {
         $timeA = isset($a['timestamp']) ? strtotime($a['timestamp']) : 0;
         $timeB = isset($b['timestamp']) ? strtotime($b['timestamp']) : 0;
         return $timeB <=> $timeA;
     });
+
+    // Window bounds for the nav labels/links.
+    $win_start   = $total_logs ? $log_offset + 1 : 0;
+    $win_end     = $log_offset + count($raw_logs);
+    $has_newer   = $log_offset > 0;
+    $has_older   = $win_end < $total_logs;
+    $base_url    = admin_url('admin.php?page=tfm-activity-logs');
+    $newer_url   = $base_url . '&log_offset=' . max(0, $log_offset - $per_page);
+    $older_url   = $base_url . '&log_offset=' . ($log_offset + $per_page);
+    $tfm_log_pagination = function () use ($win_start, $win_end, $total_logs, $has_newer, $has_older, $newer_url, $older_url) {
+        if ($total_logs <= 0) {
+            return;
+        }
+        ?>
+        <div class="tfm-log-pagination" style="display:flex;align-items:center;gap:10px;margin:12px 0;">
+            <span class="description">Showing <strong><?php echo esc_html(number_format($win_start)); ?>–<?php echo esc_html(number_format($win_end)); ?></strong> of <strong><?php echo esc_html(number_format($total_logs)); ?></strong> events</span>
+            <span style="margin-left:auto;"></span>
+            <?php if ($has_newer): ?><a class="button" href="<?php echo esc_url($newer_url); ?>">&larr; Newer</a><?php else: ?><span class="button disabled" aria-disabled="true">&larr; Newer</span><?php endif; ?>
+            <?php if ($has_older): ?><a class="button" href="<?php echo esc_url($older_url); ?>">Older &rarr;</a><?php else: ?><span class="button disabled" aria-disabled="true">Older &rarr;</span><?php endif; ?>
+        </div>
+        <?php
+    };
 
     $logs = tfm_prepare_log_rows($raw_logs);
     $log_stats = tfm_collect_log_stats($raw_logs, $tfm_logger);
@@ -1966,9 +1999,9 @@ function tfm_render_logs_page() {
         <div class="tfm-log-wrap">
             <div class="tfm-log-toolbar">
                 <div class="tfm-log-card">
-                    <h3>Events Loaded</h3>
-                    <strong><?php echo esc_html($log_stats['total']); ?></strong>
-                    <p>Showing most recent entries (max 500).</p>
+                    <h3>Events</h3>
+                    <strong><?php echo esc_html(number_format($total_logs)); ?></strong>
+                    <p>Total recorded &middot; showing <?php echo esc_html(number_format($win_start)); ?>&ndash;<?php echo esc_html(number_format($win_end)); ?> below</p>
                 </div>
                 <div class="tfm-log-card">
                     <h3>Latest Event</h3>
@@ -2003,6 +2036,8 @@ function tfm_render_logs_page() {
                     <input type="submit" name="purge_logs" class="button button-secondary" value="Purge Old Logs" onclick="return confirm('Are you sure you want to purge old logs?');">
                 </form>
             </div>
+
+            <?php $tfm_log_pagination(); ?>
 
             <?php if (!empty($logs)): ?>
                 <table id="tfm-activity-logs" class="display" style="width:100%">
@@ -2074,6 +2109,7 @@ function tfm_render_logs_page() {
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                <?php $tfm_log_pagination(); ?>
             <?php else: ?>
                 <div class="tfm-log-empty">
                     <h2>No events found</h2>

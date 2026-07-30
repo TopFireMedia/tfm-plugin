@@ -26,6 +26,10 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.30.0 — paginate the full activity-log history
+
+- **The activity log viewer now pages through all recorded history**, not just the most recent window. Added server-side **Newer / Older** navigation with a running total ("Showing X–Y of Z events"), backed by a new `count_logs()` on the logger (streams line-by-line, low memory). Within each window, DataTables still provides its own paging, search, filter, and sort. Window size stays filterable via `tfm_activity_log_view_limit` (default 1000). Replaces the old fixed "most recent 500/1000 only" behavior.
+
 ## 3.29.0 — purge the existing failed-login backlog from the activity log
 
 - **One-time cleanup strips the existing `user_login_failed` entries from the activity-log files.** 3.28.0 stopped writing new ones, but the historical spam still filled the files and dominated the recent view until it aged out. This rewrites each monthly log file keeping only the real events, so the log shows meaningful accountability history immediately. Only touches a file that actually contains failed-login entries; other entries and the file format are preserved. Combined with the 500 → 1000 viewer limit from 3.28.0, far more real activity is now visible at once.
