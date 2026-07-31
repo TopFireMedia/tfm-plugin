@@ -14,6 +14,10 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.35.0 — tidy orphaned options
+
+- **One-time cleanup deletes options left behind** by the legacy cookie-consent removal (3.33.0) and earlier absorptions: `tfm_cookie_consent_settings`, `tfm_cookie_consent_activated`, `tfm_absorbed_cleanup`, and the handover header-scan caches. Harmless if already gone; just keeps each site's options table clean.
+
 ## 3.34.0 — staged / canary auto-updates
 
 - **Auto-update now honors an optional fleet rollout policy** served by the relay (`/api/rollout`), so a release doesn't have to hit all ~78 sites at once. Pin the fleet at a version (`hold_at`), update a **canary** site or two by hand and verify on the dashboard, then lift the hold to release to everyone. Canary hosts always take the latest. It **fails open** — if the relay is unreachable, normal auto-update proceeds, so a relay outage can never freeze the fleet's updates. Policy is cached ~30 min per site; overridable via `TFM_ROLLOUT_URL`.

@@ -52,6 +52,20 @@ function tfm_maybe_run_upgrades() {
         tfm_purge_failed_login_logs();
     }
 
+    // 3.35.0 — tidy options left orphaned by the legacy cookie-consent removal
+    // (3.33.0) and earlier absorptions. delete_option() is a no-op when absent.
+    if (version_compare($installed, '3.35.0', '<')) {
+        foreach (array(
+            'tfm_cookie_consent_settings',
+            'tfm_cookie_consent_activated',
+            'tfm_absorbed_cleanup',
+            'tfm_handover_scan_prm',
+            'tfm_handover_scan_cookie_consent',
+        ) as $orphan) {
+            delete_option($orphan);
+        }
+    }
+
     update_option('tfm_plugin_db_version', TFM_PLUGIN_VERSION);
 }
 
