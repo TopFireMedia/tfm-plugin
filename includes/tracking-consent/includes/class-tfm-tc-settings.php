@@ -246,13 +246,17 @@ class TFM_TC_Settings {
 			$parts    = array_map( 'trim', explode( '|', $line ) );
 			$pattern  = sanitize_text_field( $parts[0] );
 			$category = isset( $parts[1] ) ? sanitize_key( $parts[1] ) : 'advertising';
+			// Optional third field: a display label shown in [tfm_cookie_declaration].
+			$label    = isset( $parts[2] ) ? sanitize_text_field( $parts[2] ) : '';
 			if ( '' === $pattern || strlen( $pattern ) < 4 ) {
 				continue;
 			}
 			if ( ! in_array( $category, $valid, true ) || 'necessary' === $category ) {
 				$category = 'advertising';
 			}
-			$clean[] = $pattern . '|' . $category;
+			$clean[] = '' !== $label
+				? $pattern . '|' . $category . '|' . $label
+				: $pattern . '|' . $category;
 		}
 
 		return implode( "\n", array_unique( $clean ) );
@@ -270,9 +274,36 @@ class TFM_TC_Settings {
 			if ( '' === $line || false === strpos( $line, '|' ) ) {
 				continue;
 			}
-			list( $pattern, $category ) = array_map( 'trim', explode( '|', $line, 2 ) );
-			if ( '' !== $pattern ) {
+			// pattern|category[|label] — the blocking map only needs pattern + category.
+			$parts    = array_map( 'trim', explode( '|', $line ) );
+			$pattern  = $parts[0];
+			$category = isset( $parts[1] ) ? $parts[1] : '';
+			if ( '' !== $pattern && '' !== $category ) {
 				$out[ $pattern ] = $category;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Custom patterns that carry a display label, as { label, category } pairs, so
+	 * custom-blocked vendors can appear in the [tfm_cookie_declaration] table.
+	 * Only lines with a third "|Label" field are returned.
+	 *
+	 * @return array
+	 */
+	public static function custom_pattern_vendors() {
+		$out = array();
+		foreach ( preg_split( '/[\r\n]+/', (string) self::get( 'custom_patterns' ) ) as $line ) {
+			$line  = trim( $line );
+			if ( '' === $line ) {
+				continue;
+			}
+			$parts    = array_map( 'trim', explode( '|', $line ) );
+			$category = isset( $parts[1] ) ? $parts[1] : '';
+			$label    = isset( $parts[2] ) ? $parts[2] : '';
+			if ( '' !== $label && '' !== $category ) {
+				$out[] = array( 'label' => $label, 'category' => $category );
 			}
 		}
 		return $out;

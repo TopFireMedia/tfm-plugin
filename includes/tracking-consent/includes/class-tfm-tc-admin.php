@@ -236,7 +236,7 @@ class TFM_TC_Admin {
 							</td>
 						</tr>
 						<?php
-						$this->textarea( 'custom_patterns', __( 'Custom block patterns', 'tfm-tracking-consent' ), __( 'One per line: pattern|category. The pattern is matched against script/iframe URLs and inline code. Categories: functional, analytics, advertising, personalization. Example: widget.example.com|advertising', 'tfm-tracking-consent' ), $s, 6 );
+						$this->textarea( 'custom_patterns', __( 'Custom block patterns', 'tfm-tracking-consent' ), __( 'One per line: pattern|category or pattern|category|Label. The pattern is matched against script/iframe URLs and inline code; the optional Label is what shows in the [tfm_cookie_declaration] table. Categories: functional, analytics, advertising, personalization. Example: widget.example.com|advertising|Acme Widget', 'tfm-tracking-consent' ), $s, 6 );
 						?>
 					</table>
 				</div>

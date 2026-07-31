@@ -26,6 +26,10 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.32.0 — custom cookie block-patterns can carry a display label
+
+- **Custom block patterns now accept an optional label** so custom-blocked vendors appear in the `[tfm_cookie_declaration]` table. Format is now `pattern|category` **or** `pattern|category|Label` — the label is what shows in the declaration (e.g. `widget.example.com|advertising|Acme Widget`). Previously a site relying on custom rules published an incomplete declaration because custom patterns had no display name. Existing two-field lines keep working unchanged; the blocking map still uses only pattern + category.
+
 ## 3.31.0 — report update health to the fleet dashboard
 
 - **The heartbeat now reports why a site might be stuck behind:** whether auto-update is enabled, and whether a GitHub token is set (a leftover token 401s against the public repo and silently blocks update checks — the likely cause of a site being stranded on an old version). The fleet dashboard gains an **"Updates"** column (Auto / Auto off / Token set / —), an **"Update issues"** count, and a matching filter, so a stranded site is flagged at a glance instead of found by accident.

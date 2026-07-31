@@ -163,6 +163,12 @@ class TFM_TC_Shortcodes {
 			$by_category[ $service['category'] ][] = $service['label'];
 		}
 
+		// Custom-blocked vendors that were given a display label (pattern|category|Label)
+		// so a site relying on custom rules still publishes a complete declaration.
+		foreach ( TFM_TC_Settings::custom_pattern_vendors() as $vendor ) {
+			$by_category[ $vendor['category'] ][] = $vendor['label'];
+		}
+
 		$caption = __( 'Cookie and tracking technology categories used on this website', 'tfm-tracking-consent' );
 
 		ob_start();
