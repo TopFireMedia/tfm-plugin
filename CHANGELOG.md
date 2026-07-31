@@ -14,6 +14,10 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.34.0 — staged / canary auto-updates
+
+- **Auto-update now honors an optional fleet rollout policy** served by the relay (`/api/rollout`), so a release doesn't have to hit all ~78 sites at once. Pin the fleet at a version (`hold_at`), update a **canary** site or two by hand and verify on the dashboard, then lift the hold to release to everyone. Canary hosts always take the latest. It **fails open** — if the relay is unreachable, normal auto-update proceeds, so a relay outage can never freeze the fleet's updates. Policy is cached ~30 min per site; overridable via `TFM_ROLLOUT_URL`.
+
 ## 3.33.0 — remove the legacy cookie-consent module
 
 - **Deleted the superseded cookie-consent module** (`includes/cookie-consent.php` + `includes/cookie-consent/`, 11 files, ~4,600 lines). TFM Tracking Consent (3.26.0) replaced it with real prior-consent blocking, Consent Mode v2, and consent receipts. Removal was **gated on the fleet reporting zero sites still using the legacy system** — confirmed via the heartbeat (`cookie_consent.system`): 0 legacy across all reporting sites. Also removed the now-dead pieces: the legacy branch in `tfm_heartbeat_cookie_consent_state()`, the `tfm_tracking_consent_conflict_notice()` admin warning, and the one-time `tfm_cookie_consent_default_off()` migration (every site is long past it). The standalone-plugin file-cleanup for the external "TFM Cookie Consent" plugin is unaffected and stays.
