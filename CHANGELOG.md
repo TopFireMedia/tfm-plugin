@@ -8,7 +8,13 @@ Running record of all work done on the plugin. Newest first.
 
 Standing list. Remove items from here when they ship.
 
-- _(Empty — all current items shipped. The legacy cookie-consent module was removed in 3.33.0; the custom block-pattern label shipped in 3.32.0; the two stuck sites were updated 2026-07-31 via an SSH sweep — root cause was wp-cron lag on low-traffic sites, no blocking constants.)_
+- **Dashboard trend charts.** The monitor already stores a daily aggregate snapshot
+  (`snapshot:YYYY-MM-DD` in the relay KV: up/down/stale, latest+behind, ssl_soon,
+  update_issues, custom_code, scf, index_off). The data is accumulating; build the
+  visualization — uptime %, version-adoption over time, cert/health trends — on the
+  fleet dashboard (or a `/api/trends` view) when ready.
+
+- _(Below: all prior items shipped. The legacy cookie-consent module was removed in 3.33.0; the custom block-pattern label shipped in 3.32.0; the two stuck sites were updated 2026-07-31 via an SSH sweep — root cause was wp-cron lag on low-traffic sites, no blocking constants.)_
 
 **Open observation (not code debt):** auto-update depends on WordPress cron, which depends on site traffic — so very low-traffic sites chronically lag. The relay's warm-ping helps, and a periodic SSH sweep catches the rest. A real server-side cron for wp-cron across the fleet would make this fully hands-off.
 
