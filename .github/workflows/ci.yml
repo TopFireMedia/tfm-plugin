@@ -1,0 +1,48 @@
+name: CI
+
+# Guardrail before a release auto-deploys to the whole fleet: catch PHP syntax
+# errors and a version-header/constant mismatch on every push to main. Cheap,
+# fast, and it runs before the Plugin Update Checker can ship a broken main.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show PHP version
+        run: php -v
+
+      - name: PHP syntax check — every file
+        run: |
+          set -e
+          err=0
+          # Skip the bundled plugin-update-checker library (third-party, may use
+          # newer syntax than we target; not ours to lint).
+          while IFS= read -r f; do
+            if ! php -l "$f" >/dev/null 2>&1; then
+              echo "::error file=$f::PHP parse error"
+              php -l "$f" || true
+              err=1
+            fi
+          done < <(find . -type f -name '*.php' -not -path './includes/plugin-update-checker/*')
+          if [ "$err" -ne 0 ]; then echo "PHP lint failed"; exit 1; fi
+          echo "All PHP files parse cleanly."
+
+      - name: Version header matches TFM_PLUGIN_VERSION constant
+        run: |
+          set -e
+          HEADER=$(grep -m1 -E '^\s*\*\s*Version:' topfiremedia.php | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          CONST=$(grep -m1 -E "define\('TFM_PLUGIN_VERSION'" topfiremedia.php | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "header=$HEADER  constant=$CONST"
+          if [ -z "$HEADER" ] || [ -z "$CONST" ]; then echo "::error::could not read version"; exit 1; fi
+          if [ "$HEADER" != "$CONST" ]; then
+            echo "::error::Version header ($HEADER) != TFM_PLUGIN_VERSION ($CONST)"; exit 1
+          fi
+          echo "Version header and constant agree ($HEADER)."
