@@ -110,9 +110,7 @@ function tfm_heartbeat_count_patterns($raw) {
  */
 function tfm_heartbeat_cookie_consent_state() {
     $tc = get_option('tfm_tc_settings', array());
-    $cc = get_option('tfm_cookie_consent_settings', array());
     $tc = is_array($tc) ? $tc : array();
-    $cc = is_array($cc) ? $cc : array();
 
     if (!empty($tc['enabled'])) {
         $banner        = true;
@@ -126,14 +124,9 @@ function tfm_heartbeat_cookie_consent_state() {
         // with a banner but no proof-of-consent record.
         $receipts      = !empty($tc['logging_enabled']);
     } else {
-        $banner        = !empty($cc['enabled']);
-        $consent_mode  = !empty($cc['consent_mode']);
-        $block_scripts = !empty($cc['prior_blocking']);
-        $block_iframes = !empty($cc['block_iframes']);
-        $respect_gpc   = !empty($cc['respect_gpc']);
-        $patterns      = tfm_heartbeat_count_patterns($cc['blocked_script_patterns'] ?? '');
-        $system        = $banner ? 'cookie' : 'none';
-        $receipts      = false;
+        $banner = $consent_mode = $block_scripts = $block_iframes = $respect_gpc = $receipts = false;
+        $patterns = 0;
+        $system   = 'none';
     }
 
     return array(

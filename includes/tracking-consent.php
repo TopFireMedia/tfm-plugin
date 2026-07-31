@@ -7,8 +7,9 @@
  * (`tfm_tc_settings`), class names and text domain are preserved so existing
  * configuration keeps working.
  *
- * This SUPERSEDES includes/cookie-consent.php. That older module only recorded
- * a preference; this one enforces it — server-side tag rewriting, a
+ * This replaced the earlier cookie-consent module (removed once the fleet no
+ * longer used it). That module only recorded a preference; this one enforces
+ * it — server-side tag rewriting, a
  * document.createElement gate that catches trackers injected at runtime (which
  * a server-side rewrite alone cannot), a MutationObserver fallback, Google
  * Consent Mode v2 with wait_for_update, and consent receipts. It is also
@@ -135,28 +136,6 @@ function tfm_tracking_consent_maybe_create_table() {
     update_option('tfm_tc_table_version', $schema);
 }
 add_action('init', 'tfm_tracking_consent_maybe_create_table', 6);
-
-/**
- * Warn if both consent systems are enabled at once. Two banners and two
- * blockers on one page is a support call waiting to happen, and the older
- * module is deprecated.
- */
-function tfm_tracking_consent_conflict_notice() {
-    if (!current_user_can('manage_options')) {
-        return;
-    }
-    $tc = get_option('tfm_tc_settings', array());
-    $cc = get_option('tfm_cookie_consent_settings', array());
-    if (empty($tc['enabled']) || empty($cc['enabled'])) {
-        return;
-    }
-    echo '<div class="notice notice-warning"><p><strong>' .
-        esc_html__('Two consent systems are enabled.', 'tfm-tracking-consent') .
-        '</strong> ' .
-        esc_html__('TFM Tracking Consent and the older TFM Cookie Consent are both on. Disable the older Cookie Consent under Settings → Cookie Consent — Tracking Consent supersedes it.', 'tfm-tracking-consent') .
-        '</p></div>';
-}
-add_action('admin_notices', 'tfm_tracking_consent_conflict_notice');
 
 /**
  * Load translations from the sub-directory.

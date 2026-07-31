@@ -8,23 +8,15 @@ Running record of all work done on the plugin. Newest first.
 
 Standing list. Remove items from here when they ship.
 
-- **Remove the legacy cookie-consent module (`includes/cookie-consent.php` + `includes/cookie-consent/`).**
-  Superseded by TFM Tracking Consent in 3.26.0. 11 files, ~4,614 lines. Its blocking script never
-  parsed (see the 3.26.0 notes), its consent log is a capped autoloaded option, and consent lived in
-  `sessionStorage` so it expired every session. Kept for one release only so the fleet can report in.
-  **Gate before deleting:** the fleet monitor's Consent column shows zero sites as "Legacy"
-  (i.e. no site reports `cookie_consent.system == "cookie"`). Also remove: the legacy fallback branch
-  in `tfm_heartbeat_cookie_consent_state()`, `tfm_tracking_consent_conflict_notice()`, and
-  `tfm_cookie_consent_default_off()` in `upgrades.php`. **Target: 3.27.0.**
+- _(Empty — all current items shipped. The legacy cookie-consent module was removed in 3.33.0; the custom block-pattern label shipped in 3.32.0; the two stuck sites were updated 2026-07-31 via an SSH sweep — root cause was wp-cron lag on low-traffic sites, no blocking constants.)_
 
-- **Custom block patterns carry no display label.** Stored as `domain|category`, so custom-blocked
-  vendors never appear in `[tfm_cookie_declaration]` — a site relying on custom rules publishes an
-  incomplete declaration. Proposed format `domain|category|Label`. **Target: 3.27.0.**
-
-- **firstdayaba.com and senioragroupfranchising.com are stuck on 3.22.0**, four releases behind.
-  Not update-check lag. Likely `TFM_DISABLE_AUTO_UPDATE`, a filter, or repeatedly failing updates.
+**Open observation (not code debt):** auto-update depends on WordPress cron, which depends on site traffic — so very low-traffic sites chronically lag. The relay's warm-ping helps, and a periodic SSH sweep catches the rest. A real server-side cron for wp-cron across the fleet would make this fully hands-off.
 
 ---
+
+## 3.33.0 — remove the legacy cookie-consent module
+
+- **Deleted the superseded cookie-consent module** (`includes/cookie-consent.php` + `includes/cookie-consent/`, 11 files, ~4,600 lines). TFM Tracking Consent (3.26.0) replaced it with real prior-consent blocking, Consent Mode v2, and consent receipts. Removal was **gated on the fleet reporting zero sites still using the legacy system** — confirmed via the heartbeat (`cookie_consent.system`): 0 legacy across all reporting sites. Also removed the now-dead pieces: the legacy branch in `tfm_heartbeat_cookie_consent_state()`, the `tfm_tracking_consent_conflict_notice()` admin warning, and the one-time `tfm_cookie_consent_default_off()` migration (every site is long past it). The standalone-plugin file-cleanup for the external "TFM Cookie Consent" plugin is unaffected and stays.
 
 ## 3.32.0 — custom cookie block-patterns can carry a display label
 
