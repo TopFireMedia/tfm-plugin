@@ -20,10 +20,15 @@
  * Affects every submit action, not just email: the database entry and any
  * webhook payload get the explicit value too.
  *
- * Disable per site:  add_filter( 'tfm_form_acceptance_values', '__return_false' );
+ * OFF by default. This changes the wording of client notification emails, so it
+ * is opted into per site rather than applied fleet-wide:
+ *
+ *   wp option update tfm_form_acceptance_enabled 1
+ *
  * Change the words:  add_filter( 'tfm_form_acceptance_labels', function ( $l ) {
  *                        return array( 'checked' => 'Opted in', 'unchecked' => 'Declined' );
  *                    } );
+ * Force on/off in code: add_filter( 'tfm_form_acceptance_values', '__return_true' );
  */
 
 if (!defined('ABSPATH')) {
@@ -39,7 +44,9 @@ add_action('elementor_pro/forms/process', 'tfm_form_acceptance_values', 10, 2);
  * @param object $ajax_handler Elementor Pro Ajax_Handler (unused).
  */
 function tfm_form_acceptance_values($record, $ajax_handler) {
-    if (!apply_filters('tfm_form_acceptance_values', true, $record)) {
+    // Opt-in per site: only the sites whose client wants this get it.
+    $enabled = (bool) get_option('tfm_form_acceptance_enabled', false);
+    if (!apply_filters('tfm_form_acceptance_values', $enabled, $record)) {
         return;
     }
     if (!is_object($record) || !method_exists($record, 'get') || !method_exists($record, 'update_field')) {

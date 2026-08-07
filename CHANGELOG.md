@@ -20,6 +20,11 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.36.1 — acceptance Yes/No is opt-in per site
+
+- **Now off by default.** 3.36.0 applied it fleet-wide, which changes the wording of client notification emails on every site with an acceptance field — not something to impose on ~78 sites for one client's request. Enable where it's wanted with `wp option update tfm_form_acceptance_enabled 1`, or force it in code via the existing `tfm_form_acceptance_values` filter.
+- Enabled on buildwithcirclek.com, which is what prompted it.
+
 ## 3.36.0 — Elementor Forms report acceptance checkboxes as Yes/No
 
 - **An unchecked consent checkbox now says "No" instead of nothing.** An unchecked HTML checkbox submits no value, so Elementor had nothing to render: the field appeared in the notification email with its label and a blank value, and `[field id="..."]` resolved to an empty string. An unchecked opt-in was therefore indistinguishable from a broken form — which matters when the checkbox is the record of consent.
