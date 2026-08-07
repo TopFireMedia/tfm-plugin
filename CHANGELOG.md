@@ -20,6 +20,12 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.37.0 — block WhatConverts out of the box
+
+- **WhatConverts added to the built-in blocked-services registry.** It was the only tracker still setting cookies before consent on sites that had the banner switched on: verified on three sites where every Google tag was correctly held back, yet `wc_visitor` (400 days), `wc_client` and `wc_client_current` were still written on a cold visit with no interaction.
+- It evaded the registry because it ships from a **randomised CloudFront hostname** — deliberately, to get past ad blockers — which also means no cookie scanner flags it. Across the sites we manage the hostname is shared and only the numeric script id differs, so it can be matched directly: `ksrndkehqnwntyxlhgto.com` and the vendor's stable backend `iconnode.com`, plus the inline `$wc_leads` bootstrap as a fallback if the CDN hostname ever rotates.
+- Previously this needed a hand-entered custom pattern on every site, which meant the fleet rollout would have silently left the most privacy-significant tracker running. Now it is blocked wherever consent is enabled, with no per-site configuration.
+
 ## 3.36.2 — acceptance Yes/No has a settings toggle
 
 - **Added a checkbox** at *TFM Custom Functions → General → "Form Acceptance Yes/No"*, so the feature can be switched on per site from the admin rather than only by wp-cli. The `tfm_form_acceptance_enabled` option still works as an equivalent, so it can be flipped in a sweep without loading the UI, and the `tfm_form_acceptance_values` filter still overrides both.

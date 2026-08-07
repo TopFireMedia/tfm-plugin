@@ -103,6 +103,18 @@ class TFM_TC_Services {
 				'category' => 'advertising',
 				'patterns' => array( 'cdn.callrail.com', 'callrail.com/companies' ),
 			),
+			'whatconverts'      => array(
+				'label'    => 'WhatConverts (lead & call tracking)',
+				'category' => 'advertising',
+				// Ships from a randomised CloudFront hostname specifically to
+				// evade ad blockers — which also means no cookie scanner detects
+				// it and it matches nothing generic. Across the sites we manage
+				// the hostname is shared (only the numeric script id differs), so
+				// it can be matched directly. iconnode.com is the vendor's stable
+				// backend, and $wc_leads catches the inline bootstrap should the
+				// CDN hostname ever rotate.
+				'patterns' => array( 'ksrndkehqnwntyxlhgto.com', 'iconnode.com', '$wc_leads' ),
+			),
 			'segment'           => array(
 				'label'    => 'Segment',
 				'category' => 'analytics',
