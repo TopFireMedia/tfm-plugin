@@ -20,6 +20,10 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.36.2 — acceptance Yes/No has a settings toggle
+
+- **Added a checkbox** at *TFM Custom Functions → General → "Form Acceptance Yes/No"*, so the feature can be switched on per site from the admin rather than only by wp-cli. The `tfm_form_acceptance_enabled` option still works as an equivalent, so it can be flipped in a sweep without loading the UI, and the `tfm_form_acceptance_values` filter still overrides both.
+
 ## 3.36.1 — acceptance Yes/No is opt-in per site
 
 - **Now off by default.** 3.36.0 applied it fleet-wide, which changes the wording of client notification emails on every site with an acceptance field — not something to impose on ~78 sites for one client's request. Enable where it's wanted with `wp option update tfm_form_acceptance_enabled 1`, or force it in code via the existing `tfm_form_acceptance_values` filter.

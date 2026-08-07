@@ -21,7 +21,8 @@
  * webhook payload get the explicit value too.
  *
  * OFF by default. This changes the wording of client notification emails, so it
- * is opted into per site rather than applied fleet-wide:
+ * is opted into per site rather than applied fleet-wide. Turn it on at
+ * TFM Custom Functions → General → "Form Acceptance Yes/No", or with:
  *
  *   wp option update tfm_form_acceptance_enabled 1
  *
@@ -44,8 +45,15 @@ add_action('elementor_pro/forms/process', 'tfm_form_acceptance_values', 10, 2);
  * @param object $ajax_handler Elementor Pro Ajax_Handler (unused).
  */
 function tfm_form_acceptance_values($record, $ajax_handler) {
-    // Opt-in per site: only the sites whose client wants this get it.
-    $enabled = (bool) get_option('tfm_form_acceptance_enabled', false);
+    // Opt-in per site: only the sites whose client wants this get it. The admin
+    // checkbox is the normal route; the standalone option is kept as an
+    // equivalent so it can be flipped by wp-cli without loading the settings UI.
+    $settings = function_exists('tfm_load_settings')
+        ? tfm_load_settings()
+        : get_option('tfm_plugin_settings', array());
+    $enabled = !empty($settings['elementor_acceptance_values'])
+        || (bool) get_option('tfm_form_acceptance_enabled', false);
+
     if (!apply_filters('tfm_form_acceptance_values', $enabled, $record)) {
         return;
     }

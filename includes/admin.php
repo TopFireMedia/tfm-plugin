@@ -245,6 +245,16 @@ function tfm_render_settings_page() {
                             </td>
                         </tr>
                         <tr>
+                            <th>Form Acceptance Yes/No</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="tfm_plugin_settings[elementor_acceptance_values]" value="1" <?php checked(!empty($settings['elementor_acceptance_values']), true); ?>>
+                                    Show "Yes"/"No" for Elementor acceptance checkboxes in form notifications
+                                </label>
+                                <p class="description">An unticked checkbox submits nothing, so Elementor leaves the field blank in the notification email &mdash; an unticked opt-in looks identical to a broken form. With this on, acceptance fields report <strong>Yes</strong> or <strong>No</strong> explicitly, in the email, the saved entry and any webhook. Only affects forms that have an acceptance field.</p>
+                            </td>
+                        </tr>
+                        <tr>
                             <th>Defer JavaScript</th>
                             <td>
                                 <label>
@@ -2330,6 +2340,7 @@ function tfm_sanitize_settings($input) {
     $revisions_limit = absint($input['wp_post_revisions_limit'] ?? 5);
     $sanitized['wp_post_revisions_limit'] = max(0, $revisions_limit); // Cannot be negative
 
+    $sanitized['elementor_acceptance_values'] = isset($input['elementor_acceptance_values']);
     $sanitized['disable_emojis'] = isset($input['disable_emojis']);
     $sanitized['disable_jquery_migrate'] = isset($input['disable_jquery_migrate']);
     $sanitized['disable_oembeds'] = isset($input['disable_oembeds']);
