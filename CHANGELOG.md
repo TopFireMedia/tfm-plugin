@@ -20,6 +20,15 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.36.0 — Elementor Forms report acceptance checkboxes as Yes/No
+
+- **An unchecked consent checkbox now says "No" instead of nothing.** An unchecked HTML checkbox submits no value, so Elementor had nothing to render: the field appeared in the notification email with its label and a blank value, and `[field id="..."]` resolved to an empty string. An unchecked opt-in was therefore indistinguishable from a broken form — which matters when the checkbox is the record of consent.
+- Hooks `elementor_pro/forms/process`, which fires at the end of `Form_Record::process_fields()` and so before any action (email, webhook, save-to-database) reads the record. Elementor's own Upload field uses the same hook to populate values, so this is the supported place to do it. `Form_Record::set_fields()` seeds every declared field with an empty value, which is why an unchecked acceptance field is already present in the record and can simply be filled in.
+- Applies to **every** submit action, not just email — the database entry and any webhook payload get the explicit value too.
+- Filterable: `tfm_form_acceptance_values` (return false to disable per site) and `tfm_form_acceptance_labels` (change the wording, e.g. "Opted in"/"Declined").
+
+Raised by a client on buildwithcirclek.com, whose Opt-Out checkboxes are optional and so can legitimately be left unticked. Adding a field ID and dropping `[field id="..."]` into the email body — the obvious fix — can't work, because the problem is the absent value rather than the missing reference.
+
 ## 3.35.0 — tidy orphaned options
 
 - **One-time cleanup deletes options left behind** by the legacy cookie-consent removal (3.33.0) and earlier absorptions: `tfm_cookie_consent_settings`, `tfm_cookie_consent_activated`, `tfm_absorbed_cleanup`, and the handover header-scan caches. Harmless if already gone; just keeps each site's options table clean.
