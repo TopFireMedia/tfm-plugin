@@ -3,7 +3,7 @@
  * Plugin Name: TFM Custom Functions
  * Plugin URI: https://topfiremedia.com
  * Description: A comprehensive plugin for TFM functionality including logging, video optimization, and more.
- * Version: 3.37.0
+ * Version: 3.38.0
  * Author: TopFireMedia
  * Author URI: https://topfiremedia.com
  * Text Domain: topfiremedia
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('TFM_PLUGIN_VERSION', '3.37.0');
+define('TFM_PLUGIN_VERSION', '3.38.0');
 define('TFM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TFM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -69,6 +69,9 @@ require_once TFM_PLUGIN_DIR . 'includes/frontend-scripts.php';
 // leaving an unchecked box blank in the notification email.
 require_once TFM_PLUGIN_DIR . 'includes/elementor-form-acceptance.php';
 require_once TFM_PLUGIN_DIR . 'includes/dev-noindex.php';
+// Thank-you / coming-soon / blank utility pages must never be indexed. Hooks core,
+// Rank Math and Yoast robots output so it works whichever SEO plugin is active.
+require_once TFM_PLUGIN_DIR . 'includes/page-noindex.php';
 require_once TFM_PLUGIN_DIR . 'includes/admin.php';
 require_once TFM_PLUGIN_DIR . 'includes/shortcodes.php';
 

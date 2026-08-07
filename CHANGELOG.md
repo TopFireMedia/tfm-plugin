@@ -20,6 +20,15 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.38.0 — never index thank-you / coming-soon / blank pages
+
+- **New module `includes/page-noindex.php`.** Thank-you, coming-soon and leftover blank "new page" templates are now forced to `noindex, nofollow`. A fleet audit found **20 such pages still indexable across 12 live client sites** — thank-you pages leak conversion funnels into search results, and coming-soon pages get indexed before launch and then rank for the brand.
+- **Why here and not Rank Math.** Rank Math is active on only 29 of 78 installs, and several affected sites either have it deactivated or have never had it. Activating an SEO plugin purely to set one flag would rewrite titles, meta descriptions, sitemaps and schema across a live client site — vastly more change than the problem justifies. The TFM plugin is already everywhere and auto-updates, so this covers current and future sites uniformly.
+- **Three robots surfaces are hooked** — `wp_robots` (core), `rank_math/frontend/robots`, `wpseo_robots_array` (Yoast) — because whichever SEO plugin is active owns the output and the others never fire. Verified against a Rank Math site and a site with no SEO plugin at all.
+- **Matching is deliberately conservative.** Slug-based (not title-based, so re-worded titles don't silently opt out), restricted to `is_singular('page')`, and `is_front_page()` is explicitly excluded so a homepage can never be deindexed by its slug. The base slug may carry only a known-safe suffix (`page`, `copy`, `download`, a number) — an open-ended wildcard would also swallow real content like `thank-you-note-blog-post-about-etiquette` or `coming-soon-blog-recap`, and wrongly deindexing a page that earns traffic costs far more than leaving one thank-you page indexed. 35 unit cases, including those negatives, pass; the tightened patterns still cover all 20 pages found.
+- Overridable per page via `tfm_noindex_utility_page`, and per site via `tfm_noindex_slug_patterns` or `add_filter('tfm_noindex_utility_page','__return_false')`.
+- Staging needed nothing — `dev-noindex.php` already forces `blog_public=0` across `*.tfmstaging.com`, which core honours on every page.
+
 ## 3.37.0 — block WhatConverts out of the box
 
 - **WhatConverts added to the built-in blocked-services registry.** It was the only tracker still setting cookies before consent on sites that had the banner switched on: verified on three sites where every Google tag was correctly held back, yet `wc_visitor` (400 days), `wc_client` and `wc_client_current` were still written on a cold visit with no interaction.
