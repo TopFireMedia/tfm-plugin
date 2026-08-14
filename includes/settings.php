@@ -31,6 +31,7 @@ if (!function_exists('tfm_load_settings')) {
             'debug_mode' => false,
             'enable_shortcodes' => true,
             'enable_svg_uploads' => false,
+            'enable_theme_cleanup' => false,
             'enable_font_awesome' => true,
             'enable_phone_formatter' => true,
             'defer_scripts' => false,

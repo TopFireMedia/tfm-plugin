@@ -20,6 +20,38 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.39.0 — Remove WordPress's default themes, and keep them removed
+
+Unused themes are dormant attack surface — unpatched because nobody looks at
+them — and they were repeatedly missed during final QC (raised in the 8/10
+meeting). A manual purge does not hold: a core update reinstalls the newest
+default, which is why they kept reappearing. So this recurs: a daily sweep plus
+an immediate sweep after any core update, rather than a one-off pass.
+
+Off by default (`enable_theme_cleanup`), since enabling it deletes files.
+
+The guards are the substance of the module, because deleting the wrong theme
+takes a site down. Never the active theme; never the parent of an active child
+theme; never the last remaining theme; never a network-enabled theme on
+multisite; never anything allow-listed via `tfm_theme_cleanup_keep`. That last
+set is not hypothetical — nine red*.tfmstaging.com installs run twentytwentyfive
+as their *active* theme, so a naive sweep of `twenty*` would have broken every
+one of them. Verified on red1 that twentytwentyfive is protected while the two
+genuinely unused defaults are still removed.
+
+"Default" is a fixed list of WordPress's own bundled themes rather than a
+`^twenty` pattern match, so a client theme named something like
+"twentyfour-seven" is never caught by accident — a silent, unrecoverable failure
+mode otherwise.
+
+Trade-off worth stating: WordPress falls back to a default theme when the active
+one fatals, and removing them all removes that net. Accepted, because recovery
+mode keeps wp-admin reachable from WP 5.2 on, and for a client site an unstyled
+fallback is arguably worse than an outage you are told about. Sites that want
+the net can keep one via the tfm_theme_cleanup_keep filter.
+
+---
+
 ## 3.38.1 — Consent banner button layout and primary-button styling
 
 Two rendering faults in the tracking-consent banner, both visible on
