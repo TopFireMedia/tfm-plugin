@@ -225,6 +225,135 @@ function tfm_heartbeat_plugin_state() {
     );
 }
 
+/**
+ * Filesystem and leftover-migration integrity.
+ *
+ * Both of these are invisible from outside the site — the QC tool evaluates a
+ * live URL over HTTP and can see neither file ownership nor the contents of the
+ * database — so the heartbeat is the only place they can come from.
+ *
+ * Deliberately cached: a full pass touches hundreds of stat() calls and runs
+ * LIKE scans over wp_options/wp_posts. That is fine once every twelve hours and
+ * not fine on every heartbeat, which fires as often as every ten minutes.
+ */
+function tfm_heartbeat_integrity_state() {
+    $cached = get_transient('tfm_hb_integrity');
+    if (is_array($cached)) {
+        return $cached;
+    }
+
+    $state = array(
+        'root_owned'  => tfm_heartbeat_root_owned_plugins(),
+        'stale_refs'  => tfm_heartbeat_stale_env_refs(),
+        'checked_at'  => current_time('mysql'),
+    );
+
+    set_transient('tfm_hb_integrity', $state, 12 * HOUR_IN_SECONDS);
+    return $state;
+}
+
+/**
+ * Plugin directories not owned by the user PHP runs as.
+ *
+ * A plugin extracted as root cannot be updated or removed by WordPress: the
+ * update silently fails, or worse half-applies, and the site sits on a stale
+ * version with nothing surfacing why. Reports the offending plugin slugs rather
+ * than a bare count, because the fix is per-plugin (chown) and needs naming.
+ *
+ * Checks each plugin directory and its immediate children — enough to catch a
+ * bad extraction without walking every file in every plugin.
+ */
+function tfm_heartbeat_root_owned_plugins() {
+    $dir = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/plugins';
+    if (! is_dir($dir) || ! function_exists('fileowner')) {
+        return array('expected_uid' => null, 'offenders' => array());
+    }
+
+    // The uid PHP runs as is the one WordPress must be able to write as.
+    $expected = function_exists('posix_geteuid') ? posix_geteuid() : @fileowner(WP_CONTENT_DIR);
+    if ($expected === false || $expected === null) {
+        return array('expected_uid' => null, 'offenders' => array());
+    }
+
+    $offenders = array();
+    foreach ((array) @scandir($dir) as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+        $path = $dir . '/' . $entry;
+        $bad  = (@fileowner($path) !== $expected);
+
+        if (! $bad && is_dir($path)) {
+            foreach (array_slice((array) @scandir($path), 2, 25) as $child) {
+                if (@fileowner($path . '/' . $child) !== $expected) {
+                    $bad = true;
+                    break;
+                }
+            }
+        }
+        if ($bad) {
+            $offenders[] = $entry;
+        }
+    }
+
+    return array('expected_uid' => (int) $expected, 'offenders' => $offenders);
+}
+
+/**
+ * Staging/dev URLs left in the database after a migration to live.
+ *
+ * These survive a search-replace that missed serialised data or a table, and
+ * surface later as broken images, canonical tags pointing at staging, or forms
+ * posting to a dev host. Skipped entirely on sites that ARE staging, where such
+ * URLs are correct.
+ */
+function tfm_heartbeat_stale_env_refs() {
+    global $wpdb;
+
+    $home = wp_parse_url(home_url(), PHP_URL_HOST);
+    $home = is_string($home) ? strtolower($home) : '';
+
+    /** Hosts that indicate a non-production environment. */
+    $patterns = apply_filters('tfm_heartbeat_env_patterns', array('tfmstaging.com', '.plesk.page'));
+
+    // A staging site legitimately references itself — nothing to report.
+    foreach ($patterns as $needle) {
+        if ($needle !== '' && strpos($home, ltrim($needle, '.')) !== false) {
+            return array('applicable' => false, 'siteurl_ok' => true, 'options' => 0, 'content' => 0);
+        }
+    }
+
+    $options = 0;
+    $content = 0;
+    foreach ($patterns as $needle) {
+        $like = '%' . $wpdb->esc_like($needle) . '%';
+        $options += (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_value LIKE %s", $like
+        ));
+        $content += (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_content LIKE %s", $like
+        ));
+    }
+
+    // siteurl/home pointing at a dev host on a live site is the severe case —
+    // it breaks logins and asset URLs outright rather than degrading quietly.
+    $siteurl_ok = true;
+    foreach (array(get_option('siteurl'), get_option('home')) as $u) {
+        foreach ($patterns as $needle) {
+            if ($needle !== '' && stripos((string) $u, $needle) !== false) {
+                $siteurl_ok = false;
+            }
+        }
+    }
+
+    return array(
+        'applicable' => true,
+        'siteurl_ok' => $siteurl_ok,
+        'options'    => $options,
+        'content'    => $content,
+    );
+}
+
 function tfm_send_heartbeat() {
     $endpoint = tfm_heartbeat_endpoint();
     if (empty($endpoint)) {
@@ -285,6 +414,10 @@ function tfm_send_heartbeat() {
         // still carry default themes?" and "where has the plugin set drifted?".
         'themes'         => tfm_heartbeat_theme_state(),
         'plugins'        => tfm_heartbeat_plugin_state(),
+        // Filesystem ownership and leftover staging URLs — neither is visible
+        // from outside the site, and both silently break things later (updates
+        // that cannot apply; canonical tags and assets pointing at staging).
+        'integrity'      => tfm_heartbeat_integrity_state(),
         'timestamp'      => current_time('mysql'),
     );
 

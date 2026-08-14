@@ -20,6 +20,33 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.41.0 — Heartbeat detects root-owned plugin files and leftover staging URLs
+
+Two more things nothing else can see. The QC tool evaluates a live URL over
+HTTP, so file ownership and database contents are both structurally invisible to
+it; the heartbeat is the only vantage point.
+
+`integrity.root_owned` reports plugin directories not owned by the uid PHP runs
+as. A plugin extracted as root cannot be updated or removed by WordPress — the
+update fails silently, or half-applies, and the site sits on a stale version
+with nothing surfacing why. Reports the offending slugs rather than a count,
+since the fix is a per-plugin chown and needs naming.
+
+`integrity.stale_refs` reports staging URLs left in the database after a
+migration to live: siteurl/home pointing at a dev host (severe — breaks logins
+and assets outright), plus counts in wp_options and published post content
+(quieter, surfacing later as broken images or canonicals pointing at staging).
+Sites that ARE staging self-exempt, since referencing themselves is correct.
+
+Both are cached for twelve hours. A full pass is hundreds of stat() calls plus
+LIKE scans over wp_options and wp_posts — fine twice a day, not fine on a
+heartbeat that fires every twenty minutes.
+
+Verified on durafleet.com (live: applicable, clean) and wtp.tfmstaging.com
+(staging: correctly self-exempted).
+
+---
+
 ## 3.40.0 — Heartbeat reports themes and plugin inventory
 
 The QC tool evaluates a site from the outside over HTTP, so installed themes,
