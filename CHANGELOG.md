@@ -20,6 +20,35 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.40.0 — Heartbeat reports themes and plugin inventory
+
+The QC tool evaluates a site from the outside over HTTP, so installed themes,
+inactive plugins and plugin drift are structurally invisible to it. The
+heartbeat is the only thing positioned to see them, which makes this the natural
+home for the fleet-monitoring half of the QC feedback task rather than a second
+implementation inside the QC tool.
+
+Adds two fields. `themes` reports the active theme and its parent, how many are
+installed, which of WordPress's defaults are still present, and whether cleanup
+is enabled — so the dashboard can tell a site with no defaults left from one
+that never had them, and spot sites quietly accumulating them. Note the
+defaults list can include an *active* default (the red* staging installs run
+twentytwentyfive), so consumers must compare against `active` rather than
+treating every entry as removable.
+
+`plugins` reports active and inactive slugs plus a must-use count. Slugs only,
+deliberately — enough to spot drift without shipping a version-by-version
+inventory of every site's attack surface to the relay. This is what makes the
+Juici-style questions answerable fleet-wide: plugins deactivated by someone
+outside the team, WP File Manager left active, a second logging plugin
+duplicating ours. Previewed on wtp.tfmstaging.com, which turned out to carry
+exactly that pattern — wp-file-manager and wordfence both installed but
+inactive.
+
+Costs 510 bytes on the wire.
+
+---
+
 ## 3.39.0 — Remove WordPress's default themes, and keep them removed
 
 Unused themes are dormant attack surface — unpatched because nobody looks at

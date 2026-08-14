@@ -147,6 +147,84 @@ function tfm_heartbeat_cookie_consent_state() {
 /**
  * Send a heartbeat to the relay.
  */
+/**
+ * Installed themes, and which of WordPress's defaults are still lying around.
+ *
+ * The QC tool cannot see this: it evaluates a site from the outside, over HTTP,
+ * so installed-but-inactive themes are invisible to it. The heartbeat is the
+ * only thing positioned to report them, which is what makes "which sites still
+ * carry default themes?" answerable fleet-wide instead of site by site.
+ *
+ * `cleanup_enabled` is reported alongside so the dashboard can distinguish a
+ * site that has no defaults because they were removed from one that never had
+ * them — and spot sites where the setting is off and they are accumulating.
+ */
+function tfm_heartbeat_theme_state() {
+    $defaults_present = array();
+
+    if (function_exists('tfm_theme_cleanup_default_slugs')) {
+        $known = array_map('strtolower', tfm_theme_cleanup_default_slugs());
+        foreach (array_keys(wp_get_themes()) as $stylesheet) {
+            if (in_array(strtolower($stylesheet), $known, true)) {
+                $defaults_present[] = $stylesheet;
+            }
+        }
+    }
+
+    $settings = function_exists('tfm_load_settings') ? tfm_load_settings() : array();
+
+    return array(
+        'active'           => get_stylesheet(),
+        'parent'           => get_template(),
+        'installed_count'  => count(wp_get_themes()),
+        // Includes an active default (the red* staging sites run twentytwentyfive),
+        // so the dashboard must compare against `active` rather than treating any
+        // entry here as removable.
+        'defaults_present' => $defaults_present,
+        'cleanup_enabled'  => ! empty($settings['enable_theme_cleanup']),
+    );
+}
+
+/**
+ * Plugin inventory — slug and state only, never file contents.
+ *
+ * Exists to answer the drift questions raised on the Juici site: plugins
+ * deactivated by someone outside the team, WP File Manager left active, a second
+ * logging plugin duplicating ours. Those are all invisible from outside the site,
+ * so like themes they can only come from here.
+ *
+ * Slugs only, deliberately: enough to spot drift, without shipping a
+ * version-by-version inventory of every site's attack surface to a relay.
+ */
+function tfm_heartbeat_plugin_state() {
+    if (! function_exists('get_plugins')) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+
+    $all    = array_keys(get_plugins());
+    $active = (array) get_option('active_plugins', array());
+
+    // Network-activated plugins do not appear in active_plugins on multisite.
+    if (is_multisite()) {
+        $network = (array) get_site_option('active_sitewide_plugins', array());
+        $active  = array_merge($active, array_keys($network));
+    }
+
+    $inactive = array_values(array_diff($all, $active));
+
+    // Reduce "plugin-dir/plugin-file.php" to just the directory, which is what a
+    // human recognises and what the dashboard groups on.
+    $slug = function ($file) {
+        return strtok($file, '/');
+    };
+
+    return array(
+        'active'    => array_values(array_unique(array_map($slug, $active))),
+        'inactive'  => array_values(array_unique(array_map($slug, $inactive))),
+        'mu_count'  => function_exists('get_mu_plugins') ? count(get_mu_plugins()) : 0,
+    );
+}
+
 function tfm_send_heartbeat() {
     $endpoint = tfm_heartbeat_endpoint();
     if (empty($endpoint)) {
@@ -200,6 +278,13 @@ function tfm_send_heartbeat() {
         // before 3.26.0. Powers the fleet cookie-consent view and makes the
         // post-deploy spot-check list self-generating.
         'cookie_consent' => tfm_heartbeat_cookie_consent_state(),
+        // Themes and plugins are reported here because nothing else can see them.
+        // The QC tool evaluates a site from the outside over HTTP, so installed
+        // themes, inactive plugins and plugin drift are structurally invisible to
+        // it — these two fields are what let the fleet view answer "which sites
+        // still carry default themes?" and "where has the plugin set drifted?".
+        'themes'         => tfm_heartbeat_theme_state(),
+        'plugins'        => tfm_heartbeat_plugin_state(),
         'timestamp'      => current_time('mysql'),
     );
 
