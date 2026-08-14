@@ -42,8 +42,13 @@
 	top: 0;
 	bottom: auto;
 }
+/* 420px left ~380px of usable width after padding, against roughly 456px needed
+   for three buttons once a theme uppercases them in a condensed face — so the
+   third button wrapped. Widened to fit the default labels ("Cookie Settings",
+   "Reject All", "Accept All") on one row with headroom, while staying narrow
+   enough to still read as a card rather than a bar. */
 .tfm-tc-layout-card .tfm-tc-banner {
-	max-width: 420px;
+	max-width: 520px;
 	bottom: 20px;
 	left: 20px;
 	border-radius: var(--tfm-tc-radius);
@@ -90,15 +95,41 @@
 	justify-content: flex-end;
 }
 
-.tfm-tc-btn {
+/* When the labels genuinely cannot fit on one row, wrapping should read as a
+   deliberate stack rather than an orphaned last button. Growing each button to
+   fill its row turns a ragged "two then one" into full-width rows. */
+#tfm-tc-root .tfm-tc-actions .tfm-tc-btn {
+	flex: 1 1 auto;
+	/* Themes commonly uppercase button text, which widens it well beyond what the
+	   configured label suggests; never let a label break mid-word as a result. */
+	white-space: nowrap;
+}
+
+/* Specificity is load-bearing here, not stylistic.
+   This rule was `.tfm-tc-btn` — a single class, which theme rules like
+   `.elementor button` outrank. The ghost variant below has always been
+   ID-scoped, so on themes that style buttons globally the ghost buttons kept
+   their styling while the primary button silently inherited the theme's, which
+   is how silbarsecurityfranchise ended up with an outlined pink "Accept All"
+   instead of a filled one. Matching the ghost rule's specificity fixes it. */
+#tfm-tc-root .tfm-tc-btn {
 	font: inherit;
 	font-weight: 600;
 	cursor: pointer;
-	padding: 10px 18px;
+	padding: 10px 14px;
 	border-radius: calc(var(--tfm-tc-radius, 12px) / 2);
 	border: 1px solid var(--tfm-tc-btn-bg, #1f2937);
 	background: var(--tfm-tc-btn-bg, #1f2937);
 	color: var(--tfm-tc-btn-text, #ffffff);
+	text-decoration: none;
+}
+
+/* Stated explicitly rather than relying on the base rule, so the primary action
+   is unambiguous even if a theme wins on some property we haven't anticipated. */
+#tfm-tc-root .tfm-tc-btn-primary {
+	background: var(--tfm-tc-btn-bg, #1f2937);
+	color: var(--tfm-tc-btn-text, #ffffff);
+	border-color: var(--tfm-tc-btn-bg, #1f2937);
 }
 
 #tfm-tc-root .tfm-tc-btn-ghost {

@@ -20,6 +20,37 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.38.1 — Consent banner button layout and primary-button styling
+
+Two rendering faults in the tracking-consent banner, both visible on
+silbarsecurityfranchise.com and both affecting any site whose theme styles
+buttons globally or uppercases their labels.
+
+**The primary button lost its styling to the theme.** The base rule was
+`.tfm-tc-btn` — a single class, which a theme rule such as `.elementor button`
+outranks. The ghost variant has always been written as `#tfm-tc-root
+.tfm-tc-btn-ghost`, so on those themes the ghost buttons kept our styling while
+the primary button silently inherited the theme's: "Accept All" rendered as an
+outlined pink button instead of the filled primary. The base rule is now
+ID-scoped to match, with an explicit `.tfm-tc-btn-primary` rule alongside it so
+the primary action is unambiguous even where a theme wins on some property we
+have not anticipated. This is the likely cause of durafleet's unreadable
+red-on-red third button as well — worth re-checking there.
+
+**The third button wrapped to its own row.** The card layout capped at 420px,
+leaving ~380px of usable width against roughly 456px needed for the three
+default labels once a theme uppercases them in a condensed face. The card is
+now 520px, button padding is tightened from 18px to 14px, and labels are
+`white-space: nowrap` so they never break mid-word. Where wrapping is still
+genuinely unavoidable — a much longer custom label — buttons now grow to fill
+their row, so it reads as a deliberate stack rather than an orphaned last
+button.
+
+Diagnosed from a render of the live banner rather than from the stored label
+text, which understates the width themes actually produce.
+
+---
+
 ## 3.38.0 — never index thank-you / coming-soon / blank pages
 
 - **New module `includes/page-noindex.php`.** Thank-you, coming-soon and leftover blank "new page" templates are now forced to `noindex, nofollow`. A fleet audit found **20 such pages still indexable across 12 live client sites** — thank-you pages leak conversion funnels into search results, and coming-soon pages get indexed before launch and then rank for the brand.
