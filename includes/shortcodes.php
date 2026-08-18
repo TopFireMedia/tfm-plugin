@@ -18,104 +18,121 @@ if (tfm_load_settings()['enable_shortcodes']) {
     add_shortcode('year', 'tfm_year_shortcode');
     add_shortcode('site_title', 'tfm_site_title_shortcode');
     add_shortcode('page_title', 'tfm_page_title_shortcode');
-    // Phone shortcode
-    function tfm_phone_shortcode() {
-        $settings = tfm_load_settings();
-        $raw_phone = preg_replace('/\D/', '', $settings['phone'] ?? ''); // Remove all non-numeric characters
+    /**
+     * Phone numbers, including vanity (alphanumeric) ones.
+     *
+     * A client may set the number as a vanity string such as "84 FreeLYFE".
+     * Those have to DISPLAY as written but DIAL the real digits, so letters are
+     * translated with the standard phone keypad (ABC=2 … WXYZ=9) for the tel:
+     * link only. Letters are never left in an href — dialers do not handle them
+     * consistently, and iOS in particular will refuse the number outright.
+     *
+     * Plain numeric entries are unchanged: they are still reformatted by the
+     * site's phone_format setting exactly as before, so existing sites are
+     * unaffected by this.
+     */
+    function tfm_phone_keypad_digits($value) {
+        static $map = array(
+            'A' => '2', 'B' => '2', 'C' => '2',  'D' => '3', 'E' => '3', 'F' => '3',
+            'G' => '4', 'H' => '4', 'I' => '4',  'J' => '5', 'K' => '5', 'L' => '5',
+            'M' => '6', 'N' => '6', 'O' => '6',  'P' => '7', 'Q' => '7', 'R' => '7', 'S' => '7',
+            'T' => '8', 'U' => '8', 'V' => '8',  'W' => '9', 'X' => '9', 'Y' => '9', 'Z' => '9',
+        );
 
-        // Ensure it's exactly 10 digits
-        if (strlen($raw_phone) !== 10) {
-            return esc_html('000-000-0000'); // Default if invalid
+        $out = '';
+        foreach (str_split(strtoupper((string) $value)) as $ch) {
+            if (ctype_digit($ch)) {
+                $out .= $ch;
+            } elseif (isset($map[$ch])) {
+                $out .= $map[$ch];
+            }
         }
 
-        // Get the selected format (default to format 4 for backward compatibility)
-        $format = isset($settings['phone_format']) ? $settings['phone_format'] : '4';
+        // Tolerate a country code being included in the setting; the rest of the
+        // plugin works in 10-digit US numbers and adds the +1 itself.
+        if (11 === strlen($out) && '1' === $out[0]) {
+            $out = substr($out, 1);
+        }
 
-        // Format based on selected option
+        return $out;
+    }
+
+    /** A vanity number is any value containing letters. */
+    function tfm_phone_is_vanity($value) {
+        return (bool) preg_match('/[A-Za-z]/', (string) $value);
+    }
+
+    /**
+     * The visible string. A vanity number is shown exactly as the client wrote
+     * it — reformatting into xxx-xxx-xxxx would destroy the word, which is the
+     * entire point of having one.
+     */
+    function tfm_phone_display($value, $format) {
+        $d = tfm_phone_keypad_digits($value);
+
+        // Show it verbatim only when the letters actually spell a valid number.
+        // Without the length check, stray text in the setting ("call us!") would
+        // render as-is with a dead tel: link, which looks deliberate and is worse
+        // than an obvious placeholder.
+        if (tfm_phone_is_vanity($value) && 10 === strlen($d)) {
+            return trim(preg_replace('/\s+/', ' ', (string) $value));
+        }
+
+        if (10 !== strlen($d)) {
+            return '000-000-0000';
+        }
+
         switch ($format) {
             case '1': // +1 (xxx) xxx-xxxx
-                $formatted_phone = '+1 (' . substr($raw_phone, 0, 3) . ') ' . substr($raw_phone, 3, 3) . '-' . substr($raw_phone, 6);
-                break;
+                return '+1 (' . substr($d, 0, 3) . ') ' . substr($d, 3, 3) . '-' . substr($d, 6);
             case '2': // +1-xxx-xxx-xxxx
-                $formatted_phone = '+1-' . substr($raw_phone, 0, 3) . '-' . substr($raw_phone, 3, 3) . '-' . substr($raw_phone, 6);
-                break;
+                return '+1-' . substr($d, 0, 3) . '-' . substr($d, 3, 3) . '-' . substr($d, 6);
             case '3': // (xxx) xxx-xxxx
-                $formatted_phone = '(' . substr($raw_phone, 0, 3) . ') ' . substr($raw_phone, 3, 3) . '-' . substr($raw_phone, 6);
-                break;
+                return '(' . substr($d, 0, 3) . ') ' . substr($d, 3, 3) . '-' . substr($d, 6);
             case '4': // xxx-xxx-xxxx
             default:
-                $formatted_phone = substr($raw_phone, 0, 3) . '-' . substr($raw_phone, 3, 3) . '-' . substr($raw_phone, 6);
-                break;
+                return substr($d, 0, 3) . '-' . substr($d, 3, 3) . '-' . substr($d, 6);
         }
+    }
 
-        return esc_html($formatted_phone);
+    /** The tel: href — always real digits. */
+    function tfm_phone_tel_link($value) {
+        $d = tfm_phone_keypad_digits($value);
+        return (10 === strlen($d)) ? 'tel:+1' . $d : 'tel:+10000000000';
+    }
+
+    function tfm_phone_shortcode() {
+        $settings = tfm_load_settings();
+        $format   = isset($settings['phone_format']) ? $settings['phone_format'] : '4';
+        return esc_html(tfm_phone_display($settings['phone'] ?? '', $format));
     }
     add_shortcode('phone', 'tfm_phone_shortcode');
 
-    // Phone text link shortcode - formatted display with tel: link
+    // Formatted display wrapped in a tel: link.
     function tfm_phone_text_link_shortcode() {
         $settings = tfm_load_settings();
-        $raw_phone = preg_replace('/\D/', '', $settings['phone'] ?? ''); // Remove all non-numeric characters
+        $format   = isset($settings['phone_format']) ? $settings['phone_format'] : '4';
+        $display  = tfm_phone_display($settings['phone'] ?? '', $format);
+        $tel      = tfm_phone_tel_link($settings['phone'] ?? '');
 
-        // Ensure it's exactly 10 digits
-        if (strlen($raw_phone) !== 10) {
-            return esc_html('000-000-0000'); // Default if invalid
-        }
-
-        // Get the selected format (default to format 4 for backward compatibility)
-        $format = isset($settings['phone_format']) ? $settings['phone_format'] : '4';
-
-        // Format based on selected option
-        switch ($format) {
-            case '1': // +1 (xxx) xxx-xxxx
-                $formatted_phone = '+1 (' . substr($raw_phone, 0, 3) . ') ' . substr($raw_phone, 3, 3) . '-' . substr($raw_phone, 6);
-                break;
-            case '2': // +1-xxx-xxx-xxxx
-                $formatted_phone = '+1-' . substr($raw_phone, 0, 3) . '-' . substr($raw_phone, 3, 3) . '-' . substr($raw_phone, 6);
-                break;
-            case '3': // (xxx) xxx-xxxx
-                $formatted_phone = '(' . substr($raw_phone, 0, 3) . ') ' . substr($raw_phone, 3, 3) . '-' . substr($raw_phone, 6);
-                break;
-            case '4': // xxx-xxx-xxxx
-            default:
-                $formatted_phone = substr($raw_phone, 0, 3) . '-' . substr($raw_phone, 3, 3) . '-' . substr($raw_phone, 6);
-                break;
-        }
-
-        // Create tel: link with +1 prefix
-        $tel_link = 'tel:+1' . $raw_phone;
-
-        return '<a href="' . esc_attr($tel_link) . '">' . esc_html($formatted_phone) . '</a>';
+        // Kept on one line: a vanity number split across two lines is unreadable,
+        // and breaking mid-word makes it look like a typo rather than a number.
+        return '<a href="' . esc_attr($tel) . '" class="tfm-phone-link" style="white-space:nowrap">'
+            . esc_html($display) . '</a>';
     }
     add_shortcode('phone_text_link', 'tfm_phone_text_link_shortcode');
 
-    // Phone link shortcode for Elementor compatibility
+    // Bare tel: value, for Elementor link fields.
     function tfm_phone_link_shortcode() {
         $settings = tfm_load_settings();
-        $raw_phone = preg_replace('/\D/', '', $settings['phone'] ?? ''); // Remove all non-numeric characters
-
-        // Ensure it's exactly 10 digits and add +1 prefix for tel: links
-        if (strlen($raw_phone) === 10) {
-            $tel_phone = 'tel:+1' . $raw_phone; // Add tel: prefix and +1 for US numbers
-            return esc_attr($tel_phone);
-        } else {
-            return 'tel:+10000000000'; // Default if invalid
-        }
+        return esc_attr(tfm_phone_tel_link($settings['phone'] ?? ''));
     }
     add_shortcode('phone_link', 'tfm_phone_link_shortcode');
 
-    // Phone number shortcode for Elementor button links (complete tel: link)
+    // Same as phone_link; kept as a separate shortcode because sites use both.
     function tfm_phone_number_shortcode() {
         $settings = tfm_load_settings();
-        $raw_phone = preg_replace('/\D/', '', $settings['phone'] ?? ''); // Remove all non-numeric characters
-
-        // Ensure it's exactly 10 digits and add +1 prefix with tel: protocol
-        if (strlen($raw_phone) === 10) {
-            $tel_phone = 'tel:+1' . $raw_phone; // Complete tel: link
-            return esc_attr($tel_phone);
-        } else {
-            return 'tel:+10000000000'; // Default if invalid
-        }
+        return esc_attr(tfm_phone_tel_link($settings['phone'] ?? ''));
     }
     add_shortcode('phone_number', 'tfm_phone_number_shortcode');
 

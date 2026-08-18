@@ -298,6 +298,12 @@ function tfm_render_settings_page() {
                                 <input type="text" name="tfm_plugin_settings[phone]" value="<?php echo esc_attr($settings['phone'] ?? ''); ?>" placeholder="000-000-0000" class="regular-text">
                                 <p class="description">Enter phone number (minimum 10 digits required). Format: xxx-xxx-xxxx</p>
                                 <p class="description">
+                                    <strong>Vanity numbers are supported.</strong> Enter it exactly as it should appear &mdash; e.g.
+                                    <code>84 FreeLYFE</code> &mdash; and it will display that way while the click-to-call link
+                                    dials the real digits (<code>tel:+18437335933</code>). Letters are converted using the standard
+                                    phone keypad, and the spacing you type is preserved.
+                                </p>
+                                <p class="description">
                                     Shortcodes: 
                                     <code>[phone]</code> <button type="button" class="button button-small tfm-copy-shortcode" data-shortcode="[phone]">Copy</button> (formatted display)
                                     <code>[phone_text_link]</code> <button type="button" class="button button-small tfm-copy-shortcode" data-shortcode="[phone_text_link]">Copy</button> (formatted display with tel: link)

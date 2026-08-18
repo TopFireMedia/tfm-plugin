@@ -20,6 +20,37 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.42.0 — Vanity (alphanumeric) phone numbers
+
+A client asked for "84 FreeLYFE" to be shown on the page while the click-to-call
+link still dials 843-733-5933. Previously impossible: every phone shortcode
+began by stripping non-digits, so the letters vanished, two digits were left,
+the 10-digit check failed and the placeholder 000-000-0000 was rendered instead.
+
+The phone setting now accepts letters. Display and dialling are separated: a
+vanity value is shown exactly as typed, with the spacing preserved, while the
+tel: href is built by translating letters through the standard phone keypad
+(ABC=2 … WXYZ=9). Letters are never left in an href -- dialers handle them
+inconsistently and iOS rejects the number outright.
+
+Numeric entries are untouched. All four phone_format options produce
+byte-identical output to before, verified case by case, so the ~72 sites already
+using these shortcodes see no change.
+
+Two details worth knowing. Verbatim display requires the letters to actually
+spell a valid 10-digit number, so stray text in the field ("call us!") still
+falls back to the placeholder rather than rendering as-is with a dead link --
+which would look deliberate and be harder to spot. And [phone_text_link] now
+carries white-space:nowrap, because a vanity number broken across two lines
+reads as a typo rather than a phone number; the client specifically asked for it
+to stay unbroken.
+
+Also collapses four near-identical copies of the parse-and-format logic into
+shared helpers, and documents the capability on the settings screen so it is
+discoverable without reading the changelog.
+
+---
+
 ## 3.41.0 — Heartbeat detects root-owned plugin files and leftover staging URLs
 
 Two more things nothing else can see. The QC tool evaluates a live URL over
