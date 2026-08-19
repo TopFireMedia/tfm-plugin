@@ -321,6 +321,7 @@ function tfm_render_settings_page() {
                                     <option value="2" <?php selected($settings['phone_format'] ?? '4', '2'); ?>>+1-xxx-xxx-xxxx</option>
                                     <option value="3" <?php selected($settings['phone_format'] ?? '4', '3'); ?>>(xxx) xxx-xxxx</option>
                                     <option value="4" <?php selected($settings['phone_format'] ?? '4', '4'); ?>>xxx-xxx-xxxx</option>
+                                    <option value="5" <?php selected($settings['phone_format'] ?? '4', '5'); ?>>xxx.xxx.xxxx</option>
                                 </select>
                                 <p class="description">Choose how the phone number is displayed when using the <code>[phone]</code> shortcode.</p>
                             </td>
@@ -2240,7 +2241,7 @@ function tfm_sanitize_settings($input) {
     }
     
     // Sanitize phone format (default to '4' for backward compatibility)
-    $valid_formats = ['1', '2', '3', '4'];
+    $valid_formats = ['1', '2', '3', '4', '5'];
     $sanitized['phone_format'] = in_array($input['phone_format'] ?? '4', $valid_formats) ? $input['phone_format'] : '4';
     
     $sanitized['email'] = sanitize_email($input['email'] ?? '');

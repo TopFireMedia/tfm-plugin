@@ -20,6 +20,32 @@ Standing list. Remove items from here when they ship.
 
 ---
 
+## 3.43.0 — Period-separated phone format, and one shared formatter
+
+Adds a fifth phone_format option, 843.733.5933, alongside the four that already
+existed. Requested by the FreeLYFE client.
+
+The larger part of this release is that the Elementor phone widget now uses the
+same formatter as the shortcodes. It had been carrying its own copy of the
+format switch and its own digit-stripping, which meant 3.42.0's vanity support
+never reached it: a site using the widget would have shown 843-733-5933 while
+[phone] on the same page showed "84 FreeLYFE". The new format would have been
+missed the same way, silently falling through to the default. Both copies are
+gone; the widget calls tfm_phone_display() and tfm_phone_tel_link().
+
+The widget also stops digit-stripping the stored value before using it, which is
+what destroyed vanity numbers there. It still declines to render at all when the
+value doesn't resolve to a real 10-digit number -- for a widget, absent is better
+than a visible placeholder. Both delegating calls fall back to the old inline
+logic if the shortcodes module is disabled, so the widget keeps working on sites
+that have it switched off.
+
+Note that a vanity number ignores the format setting entirely, format 5 included.
+There is no sensible way to punctuate "84 FreeLYFE", and reformatting it would
+destroy the word.
+
+---
+
 ## 3.42.0 — Vanity (alphanumeric) phone numbers
 
 A client asked for "84 FreeLYFE" to be shown on the page while the click-to-call

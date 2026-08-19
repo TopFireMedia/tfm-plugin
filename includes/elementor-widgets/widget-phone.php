@@ -397,59 +397,58 @@ class Widget_Phone extends Widget_Base {
         <?php
     }
     
+    /**
+     * The configured phone value, raw.
+     *
+     * Deliberately NOT digit-stripped: a vanity number such as "84 FreeLYFE"
+     * has to survive intact to be displayed, and the shared helpers below know
+     * how to turn it into digits when a tel: link is needed.
+     */
     private function get_default_phone() {
         if (!function_exists('tfm_load_settings')) {
             return '';
         }
-        
+
         $settings = tfm_load_settings();
-        $raw_phone = preg_replace('/\D/', '', $settings['phone'] ?? '');
-        
-        if (strlen($raw_phone) === 10) {
-            return $raw_phone; // Return raw phone for formatting
+        $value    = (string) ($settings['phone'] ?? '');
+
+        // Only render when the value resolves to a real 10-digit number —
+        // otherwise the widget is better off absent than showing a placeholder.
+        if (!function_exists('tfm_phone_keypad_digits')) {
+            $digits = preg_replace('/\D/', '', $value);
+            return (10 === strlen($digits)) ? $value : '';
         }
-        
-        return '';
+
+        return (10 === strlen(tfm_phone_keypad_digits($value))) ? $value : '';
     }
-    
+
+    /**
+     * Formatting is delegated to the shortcode helpers so the widget and the
+     * [phone] shortcode can never disagree. They previously each held a copy of
+     * this switch, and the copies drifted: the widget stripped letters, so
+     * vanity numbers rendered as digits here and as words everywhere else.
+     */
     private function format_phone($phone) {
-        // If phone is already formatted, extract raw digits
+        if (function_exists('tfm_phone_display')) {
+            $settings = function_exists('tfm_load_settings') ? tfm_load_settings() : array();
+            $format   = isset($settings['phone_format']) ? $settings['phone_format'] : '4';
+            return tfm_phone_display($phone, $format);
+        }
+
+        // Shortcodes disabled: fall back to the default format rather than fail.
         $raw = preg_replace('/\D/', '', $phone);
-        
-        if (strlen($raw) !== 10) {
-            return $phone; // Return as-is if invalid
+        if (10 !== strlen($raw)) {
+            return $phone;
         }
-        
-        // Get format from settings (default to format 4 for backward compatibility)
-        if (!function_exists('tfm_load_settings')) {
-            // Fallback to format 4 if settings function doesn't exist
-            return substr($raw, 0, 3) . '-' . substr($raw, 3, 3) . '-' . substr($raw, 6);
-        }
-        
-        $settings = tfm_load_settings();
-        $format = isset($settings['phone_format']) ? $settings['phone_format'] : '4';
-        
-        // Format based on selected option
-        switch ($format) {
-            case '1': // +1 (xxx) xxx-xxxx
-                return '+1 (' . substr($raw, 0, 3) . ') ' . substr($raw, 3, 3) . '-' . substr($raw, 6);
-            case '2': // +1-xxx-xxx-xxxx
-                return '+1-' . substr($raw, 0, 3) . '-' . substr($raw, 3, 3) . '-' . substr($raw, 6);
-            case '3': // (xxx) xxx-xxxx
-                return '(' . substr($raw, 0, 3) . ') ' . substr($raw, 3, 3) . '-' . substr($raw, 6);
-            case '4': // xxx-xxx-xxxx
-            default:
-                return substr($raw, 0, 3) . '-' . substr($raw, 3, 3) . '-' . substr($raw, 6);
-        }
+        return substr($raw, 0, 3) . '-' . substr($raw, 3, 3) . '-' . substr($raw, 6);
     }
-    
+
     private function get_tel_link($phone) {
-        $raw = preg_replace('/\D/', '', $phone);
-        
-        if (strlen($raw) === 10) {
-            return 'tel:+1' . $raw;
+        if (function_exists('tfm_phone_tel_link')) {
+            return tfm_phone_tel_link($phone);
         }
-        
-        return 'tel:' . $raw;
+
+        $raw = preg_replace('/\D/', '', $phone);
+        return (10 === strlen($raw)) ? 'tel:+1' . $raw : 'tel:' . $raw;
     }
 }

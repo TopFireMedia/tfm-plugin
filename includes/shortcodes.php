@@ -89,6 +89,8 @@ if (tfm_load_settings()['enable_shortcodes']) {
                 return '+1-' . substr($d, 0, 3) . '-' . substr($d, 3, 3) . '-' . substr($d, 6);
             case '3': // (xxx) xxx-xxxx
                 return '(' . substr($d, 0, 3) . ') ' . substr($d, 3, 3) . '-' . substr($d, 6);
+            case '5': // xxx.xxx.xxxx
+                return substr($d, 0, 3) . '.' . substr($d, 3, 3) . '.' . substr($d, 6);
             case '4': // xxx-xxx-xxxx
             default:
                 return substr($d, 0, 3) . '-' . substr($d, 3, 3) . '-' . substr($d, 6);
