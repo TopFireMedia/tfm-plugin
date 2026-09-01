@@ -216,6 +216,16 @@ function tfm_render_settings_page() {
                             </td>
                         </tr>
                         <tr>
+                            <th>Form Submissions Access</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="tfm_plugin_settings[enable_form_submissions_access]" value="1" <?php checked($settings['enable_form_submissions_access'], true); ?>>
+                                    Add a read-only "Form Submissions" role and CSV download screen
+                                </label>
+                                <p class="description">Creates a Form Submissions role holding only <code>read</code> and <code>tfm_view_form_submissions</code>. Users with it see one screen and can download leads as CSV — no editing, no other admin access.</p>
+                            </td>
+                        </tr>
+                        <tr>
                             <th>Enable Shortcodes</th>
                             <td>
                                 <label>
@@ -2202,6 +2212,7 @@ function tfm_sanitize_settings($input) {
     
     // Sanitize boolean values
     $sanitized['enable_svg_uploads'] = isset($input['enable_svg_uploads']);
+    $sanitized['enable_form_submissions_access'] = isset($input['enable_form_submissions_access']);
     $sanitized['enable_font_awesome'] = isset($input['enable_font_awesome']);
     $sanitized['enable_phone_formatter'] = isset($input['enable_phone_formatter']);
     $sanitized['enable_shortcodes'] = isset($input['enable_shortcodes']);

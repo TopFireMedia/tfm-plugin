@@ -4,6 +4,35 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.44.0
+
+**Form submissions access for clients.** New `includes/form-submissions-access.php`,
+off by default, enabled per site via **Form Submissions Access** in TFM settings.
+
+Elementor Pro gates its Submissions screen and REST routes on `manage_options` and
+offers no capability for partial access. Rather than filter Elementor's permission
+callbacks — which would break silently whenever Pro reorganises them — this reads
+`{prefix}e_submissions` / `_values` directly and ships its own screen.
+
+- Role **Form Submissions** holding exactly `read` + `tfm_view_form_submissions`.
+  No edit, delete or resend path exists anywhere in the module.
+- Screen offers *Since my last download* (default), Last 7, Last 30, or a custom
+  range, plus a per-form picker defaulting to all forms. The watermark preset means
+  no gaps and no repeats however irregularly the client comes back.
+- CSV is streamed to the browser — never written into `uploads/`, so no stray file
+  of leads sits on disk with a guessable URL.
+- Leads-only users get one menu item, are redirected out of any other admin screen,
+  and lose the toolbar. Admins keep the cap and additionally see a download log
+  (who, when, how many rows) — worth having when client PII leaves the site.
+- CSV columns key on the field *label*, not Elementor's generated field id: each
+  form generates its own id for the same question, so keying by id repeated shared
+  columns once per form. Labels are also normalised ("State" / "State*") and
+  acceptance values render as Yes rather than the raw `on`.
+
+Enabled on fmtfranchise.com and mosquitoandpestfranchise.com.
+
+---
+
 ## Scheduled removals / technical debt
 
 Standing list. Remove items from here when they ship.
