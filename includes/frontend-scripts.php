@@ -115,7 +115,7 @@ function tfm_enqueue_scripts() {
     if (!empty($settings['enable_phone_formatter'])) {
         wp_enqueue_script(
             'tfm-phone-formatter',
-            plugin_dir_url(__FILE__) . 'assets/js/phone-formatter.js',
+            TFM_PLUGIN_URL . 'assets/js/phone-formatter.js',
             [],
             '1.0.0',
             true

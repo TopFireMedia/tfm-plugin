@@ -4,6 +4,25 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.44.1
+
+**Fix: the phone formatter 404'd on every site.** `includes/frontend-scripts.php`
+enqueued `phone-formatter.js` with `plugin_dir_url(__FILE__)`. Since v3.16.0 moved that
+code out of the plugin root and into `includes/`, `__FILE__` resolved one directory too
+deep — the browser asked for `<plugin>/includes/assets/js/phone-formatter.js` while the
+file ships at `<plugin>/assets/js/phone-formatter.js`.
+
+Every page load on every site fetched a 404 and phone-input formatting never ran. Broken
+since 22 Jul 2026; all 75 installs on the VPS were affected, spanning 3.41.0 to 3.44.0.
+`enable_phone_formatter` defaults to true, so no site opted into this.
+
+- Now uses `TFM_PLUGIN_URL`, already the convention elsewhere in the same file (line 195)
+  and defined at the plugin root.
+- Audited every `wp_enqueue_*` / `wp_register_*` call in the plugin: nine in total, all
+  now resolve to a file that exists. This was the only one that did not.
+
+---
+
 ## 3.44.0
 
 **Form submissions access for clients.** New `includes/form-submissions-access.php`,
