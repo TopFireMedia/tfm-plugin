@@ -76,6 +76,50 @@ function tfm_noindex_slug_patterns() {
 }
 
 /**
+ * Would this page be noindexed, judged by id rather than by what is being rendered?
+ *
+ * Split out of tfm_is_noindex_utility_page() so callers that are not in the loop can
+ * ask the same question — the HTML sitemap needs it to avoid listing pages this
+ * module has already told search engines to ignore.
+ *
+ * Applies the same tfm_noindex_utility_page filter, so a site that opts one page back
+ * in gets that page back in the sitemap too, and the two surfaces cannot disagree.
+ *
+ * The front page is the caller's responsibility to exclude; this function answers only
+ * the slug question.
+ *
+ * @param int $post_id Page ID.
+ * @return bool
+ */
+function tfm_is_noindex_utility_post($post_id) {
+    $post_id = (int) $post_id;
+    if (!$post_id) {
+        return false;
+    }
+
+    $slug    = (string) get_post_field('post_name', $post_id);
+    $noindex = false;
+
+    if ($slug !== '') {
+        foreach (tfm_noindex_slug_patterns() as $pattern) {
+            if (preg_match($pattern, $slug)) {
+                $noindex = true;
+                break;
+            }
+        }
+    }
+
+    /**
+     * Filter whether this page should be noindexed.
+     *
+     * @param bool $noindex Whether to noindex.
+     * @param int  $post_id Page ID.
+     * @param string $slug  Page slug.
+     */
+    return (bool) apply_filters('tfm_noindex_utility_page', $noindex, $post_id, $slug);
+}
+
+/**
  * Should the page currently being rendered be noindexed?
  *
  * Cached per request — each of the three robots filters may fire, and on some
@@ -102,26 +146,7 @@ function tfm_is_noindex_utility_page() {
         return $cache;
     }
 
-    $slug    = (string) get_post_field('post_name', $post_id);
-    $noindex = false;
-
-    if ($slug !== '') {
-        foreach (tfm_noindex_slug_patterns() as $pattern) {
-            if (preg_match($pattern, $slug)) {
-                $noindex = true;
-                break;
-            }
-        }
-    }
-
-    /**
-     * Filter whether this page should be noindexed.
-     *
-     * @param bool $noindex Whether to noindex.
-     * @param int  $post_id Page ID.
-     * @param string $slug  Page slug.
-     */
-    $cache = (bool) apply_filters('tfm_noindex_utility_page', $noindex, $post_id, $slug);
+    $cache = tfm_is_noindex_utility_post($post_id);
 
     return $cache;
 }

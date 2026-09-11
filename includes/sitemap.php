@@ -84,6 +84,64 @@ function tfm_sitemap_metabox_callback($post) {
 }
 
 
+/**
+ * Drop pages this plugin already tells search engines to ignore.
+ *
+ * The noindex module deindexes utility pages by slug — thank-you, coming-soon,
+ * new-page and friends. Listing those same pages in the plugin's own HTML sitemap
+ * contradicts that: the sitemap is the one place guaranteed to link to them, so a
+ * crawler is handed the page immediately after being told not to index it.
+ *
+ * Before this, the only way to keep them out was the per-page "Exclude from HTML
+ * Sitemap" checkbox, which meant remembering to tick a box on every site for pages
+ * the plugin had already classified. The two now agree by default.
+ *
+ * Pages only — the noindex module never applies to posts, so neither does this.
+ * The front page is always kept, matching tfm_is_noindex_utility_page().
+ *
+ * Opt a site out entirely:
+ *   add_filter( 'tfm_sitemap_exclude_noindexed', '__return_false' );
+ *
+ * @param array $posts Post objects from a sitemap query.
+ * @return array
+ */
+function tfm_sitemap_filter_noindexed($posts) {
+    if (empty($posts) || !is_array($posts)) {
+        return $posts;
+    }
+
+    /**
+     * Filter whether the HTML sitemap hides pages the plugin noindexes.
+     *
+     * @param bool $enabled Default true.
+     */
+    if (!apply_filters('tfm_sitemap_exclude_noindexed', true)) {
+        return $posts;
+    }
+
+    // Guard in case the noindex module is ever unhooked or loaded conditionally.
+    if (!function_exists('tfm_is_noindex_utility_post')) {
+        return $posts;
+    }
+
+    $front_id = (int) get_option('page_on_front');
+
+    $kept = array_filter($posts, function ($post) use ($front_id) {
+        if (!is_object($post) || empty($post->ID)) {
+            return true;
+        }
+        if (!isset($post->post_type) || $post->post_type !== 'page') {
+            return true;
+        }
+        if ((int) $post->ID === $front_id) {
+            return true;
+        }
+        return !tfm_is_noindex_utility_post($post->ID);
+    });
+
+    return array_values($kept);
+}
+
 function tfm_sitemap_get_posts($post_type, $args = []) {
     // Default query args
     $query_args = [
@@ -111,7 +169,7 @@ function tfm_sitemap_get_posts($post_type, $args = []) {
     }
 
     $query = new WP_Query($query_args);
-    return $query->posts;
+    return tfm_sitemap_filter_noindexed($query->posts);
 }
 
 function tfm_sitemap_get_pages_hierarchical($args = []) {
@@ -140,7 +198,7 @@ function tfm_sitemap_get_pages_hierarchical($args = []) {
     }
 
     $query = new WP_Query($query_args);
-    return $query->posts;
+    return tfm_sitemap_filter_noindexed($query->posts);
 }
 
 function tfm_sitemap_get_posts_by_category($args = []) {
@@ -177,7 +235,7 @@ function tfm_sitemap_get_posts_by_category($args = []) {
             $query_args['order'] = $args['order'];
         }
 
-        $posts = get_posts($query_args);
+        $posts = tfm_sitemap_filter_noindexed(get_posts($query_args));
 
         if (!empty($posts)) {
             $result[] = [
@@ -300,7 +358,10 @@ function tfm_sitemap_is_enabled() {
 }
 
 function tfm_sitemap_get_cache_key($args = []) {
-    return 'tfm_sitemap_' . md5(serialize($args));
+    // Version-scoped: a release that changes which pages qualify would otherwise stay
+    // invisible behind an already-warm transient until it happened to expire.
+    $version = defined('TFM_PLUGIN_VERSION') ? TFM_PLUGIN_VERSION : '0';
+    return 'tfm_sitemap_' . md5($version . '|' . serialize($args));
 }
 
 function tfm_sitemap_get_cached($args = []) {

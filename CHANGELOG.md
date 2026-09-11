@@ -4,6 +4,39 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.45.0
+
+**The HTML sitemap no longer lists pages the plugin has deindexed.** `includes/page-noindex.php`
+marks utility pages as noindex by slug — thank-you, coming-soon, new-page, blank — while
+`includes/sitemap.php` filtered only on the per-page **Exclude from HTML Sitemap** checkbox.
+The two never consulted each other, so the plugin would tell crawlers to ignore a page and
+then hand them a link to it from the one page guaranteed to be crawled.
+
+Keeping them apart meant remembering to tick a box, per page, on every site, for pages the
+plugin had already classified. Found on a franchise site whose sitemap listed Thank You,
+Coming Soon and a leftover New Page, all three already noindexed by this plugin.
+
+- `tfm_is_noindex_utility_post( $post_id )` splits the slug test out of
+  `tfm_is_noindex_utility_page()` so callers outside the loop can ask the same question.
+  The rendering path now delegates to it, so the robots tags and the sitemap cannot drift
+  apart, and a site that opts a page back in via `tfm_noindex_utility_page` gets it back in
+  both places.
+- All three sitemap queries — flat, hierarchical and by-category — pass their results
+  through `tfm_sitemap_filter_noindexed()`. Pages only, since the noindex module never
+  applied to posts, and the front page is always kept.
+- Opt a site out with `add_filter( 'tfm_sitemap_exclude_noindexed', '__return_false' );`
+  The manual per-page checkbox is untouched and still works.
+- The sitemap cache key now includes the plugin version. It was `md5(serialize($args))`,
+  so a release that changes which pages qualify would have stayed invisible behind a warm
+  transient until it expired — up to the configured timeout after the update landed.
+
+**Fix: `TFM_PLUGIN_VERSION` was a release behind.** 3.44.1 bumped the plugin header but not
+the constant, which still read `3.44.0`. It feeds asset cache-busting, the upgrade routine
+and the version every site reports through the heartbeat — so fleet reporting had every
+install on 3.44.1 claiming to be 3.44.0. Both now move together.
+
+---
+
 ## 3.44.1
 
 **Fix: the phone formatter 404'd on every site.** `includes/frontend-scripts.php`
