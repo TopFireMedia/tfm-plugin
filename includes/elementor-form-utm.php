@@ -232,11 +232,18 @@ function tfm_form_utm_email_lines($fields, $record) {
         // Empty values are sent deliberately: direct traffic yields
         // "UTM Source:" with nothing after it, which is what the CRM expects
         // and keeps the line set identical on every submission.
-        $line = $label . ': ' . $value;
-        $lines[] = $is_html ? '<p>' . esc_html($line) . '</p>' : $line;
+        $lines[] = $is_html ? esc_html($label . ': ' . $value) : $label . ': ' . $value;
     }
 
-    $block = $is_html ? implode('', $lines) : "\n" . implode("\n", $lines);
+    // `<br>`, not `<p>`. Elementor separates every line it generates with
+    // `$line_break = $send_html ? '<br>' : "\n"` — both `[all-fields]` and the
+    // metadata block — and FranConnect's parser splits on that. A real
+    // submission proved the difference: every `<br>`-separated line was read
+    // (the form fields mapped to CRM fields, the metadata landed in Comments),
+    // while `<p>`-wrapped lines vanished entirely, parsed as one unreadable
+    // blob. Matching Elementor's own convention is the whole fix.
+    $break = $is_html ? '<br>' : "\n";
+    $block = $break . implode($break, $lines);
 
     // Elementor separates its metadata block with a "---" line; put the UTM
     // lines above it when it is present, else simply append.

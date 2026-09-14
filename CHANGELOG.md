@@ -4,6 +4,25 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.46.1
+
+**UTM lines now use `<br>`, not `<p>` — without which the CRM silently dropped them.** The
+first real submission through FranConnect came back with every UTM field empty, and the record
+showed why: form fields and Elementor's metadata had parsed fine, while every `<p>`-wrapped
+line had vanished entirely — not mapped, not even dumped into Comments.
+
+Elementor separates every line it generates with `$line_break = $send_html ? '<br>' : "\n"` —
+`[all-fields]` and the metadata block alike — and FranConnect's parser splits on that. Wrapping
+in `<p>` merged the five lines into one blob it could not read. Matching Elementor's own
+convention is the entire fix.
+
+Worth noting for any site being set up: this is not specific to our lines. Rita's email body
+carries two hand-written `<p>Country: USA</p>` / `<p>Source Details: …</p>` lines that merge
+into `Country: USASource Details: …` for the same reason, so they have never parsed either.
+Hand-written lines in an Elementor email body should end with `<br>`, not be wrapped in `<p>`.
+
+---
+
 ## 3.46.0
 
 **Elementor forms can now carry UTM attribution into the CRM.** Franchise CRMs — FranConnect
