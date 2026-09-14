@@ -4,6 +4,47 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.46.0
+
+**Elementor forms can now carry UTM attribution into the CRM.** Franchise CRMs — FranConnect
+across most of the fleet — attribute a lead from `Field Name: Value` lines in the notification
+email. `includes/elementor-form-utm.php` adds `UTM Source`, `UTM Medium`, `UTM Campaign`,
+`UTM Content` and `UTM Term` to every notification, with **no change to any form**.
+
+The obvious implementation is Elementor's own Hidden field with the "Request Parameter"
+dynamic tag, and it is wrong: it reads the URL of the page holding the form, not the page the
+visitor landed on. A prospect arrives on `/?utm_source=meta`, browses to the opportunity page,
+submits there, and every value is empty. Franchise prospects rarely convert on the landing
+page, so most paid leads would be recorded as direct — while appearing to work, which is worse
+than not having it. A front-end script therefore stores any `utm_*` it sees in a first-party
+cookie (last touch, 90 days) and the module reads that cookie at submit time.
+
+Two things were found by testing against a real site rather than by reasoning:
+
+- **`Form_Record` has no `add_field()`.** Verified against Elementor Pro 4.2.3, which exposes
+  only `get`, `update_field` and `remove_field`, so injecting fields into the record is not
+  possible without touching protected state a future release could rename. The module appends
+  to the email through `elementor_pro/forms/wp_mail_fields` instead — a documented hook that
+  also works whether the body is `[all-fields]` or a hand-written list, and gives exact control
+  over the format a downstream parser depends on.
+- **The cookie holds a query string, not JSON.** WordPress slashes `$_COOKIE`, and unslashing
+  JSON destroys it: a value containing a double quote is stored as `\"`, unslashing leaves a
+  bare `"`, and the whole object fails to decode — one quote in one parameter silently wiped
+  all five values. `URLSearchParams` percent-encodes, so nothing needs escaping.
+
+Values are stripped of tags, restricted to a safe character set and capped at 200 characters
+before they reach the email: they come from the query string, so anyone can put anything in
+them, and they end up in an HTML message sent to a CRM inbox and BCC'd to staff.
+
+Direct traffic sends the labels with empty values, which is what the CRM expects and mirrors
+how Elementor already renders a declared-but-empty field.
+
+**OFF by default** — it adds five lines to every notification email on the site, a
+client-visible change — at TFM Custom Functions → General → "Form UTM Attribution", or
+`wp option update tfm_form_utm_enabled 1`.
+
+---
+
 ## 3.45.0
 
 **The HTML sitemap no longer lists pages the plugin has deindexed.** `includes/page-noindex.php`

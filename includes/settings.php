@@ -82,6 +82,7 @@ if (!function_exists('tfm_load_settings')) {
             'disable_wp_revisions' => false,
             'wp_post_revisions_limit' => 5,
             'elementor_acceptance_values' => false,
+            'elementor_form_utm' => false,
             'disable_emojis' => false,
             'disable_jquery_migrate' => false,
             'disable_oembeds' => false

@@ -265,6 +265,16 @@ function tfm_render_settings_page() {
                             </td>
                         </tr>
                         <tr>
+                            <th>Form UTM Attribution</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="tfm_plugin_settings[elementor_form_utm]" value="1" <?php checked(!empty($settings['elementor_form_utm']), true); ?>>
+                                    Pass UTM campaign data through Elementor form notifications
+                                </label>
+                                <p class="description">Records <code>utm_source</code>, <code>utm_medium</code>, <code>utm_campaign</code>, <code>utm_content</code> and <code>utm_term</code> from the landing-page URL in a first-party cookie (last touch, 90 days) and adds them to every form submission as <strong>UTM Source</strong>, <strong>UTM Medium</strong> and so on &mdash; so a CRM that parses <code>Field Name: Value</code> lines, such as FranConnect, attributes the lead correctly even when the visitor browsed several pages before converting. No form changes are needed on bodies that use <code>[all-fields]</code>. Direct traffic sends the labels with empty values.</p>
+                            </td>
+                        </tr>
+                        <tr>
                             <th>Defer JavaScript</th>
                             <td>
                                 <label>
@@ -2359,6 +2369,7 @@ function tfm_sanitize_settings($input) {
     $sanitized['wp_post_revisions_limit'] = max(0, $revisions_limit); // Cannot be negative
 
     $sanitized['elementor_acceptance_values'] = isset($input['elementor_acceptance_values']);
+    $sanitized['elementor_form_utm'] = isset($input['elementor_form_utm']);
     $sanitized['disable_emojis'] = isset($input['disable_emojis']);
     $sanitized['disable_jquery_migrate'] = isset($input['disable_jquery_migrate']);
     $sanitized['disable_oembeds'] = isset($input['disable_oembeds']);
