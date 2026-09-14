@@ -61,10 +61,14 @@ if (!defined('ABSPATH')) {
 }
 
 /** Cookie holding the last-touch UTM set. First-party, no third party involved. */
-define('TFM_UTM_COOKIE', 'tfm_utm');
+if (!defined('TFM_UTM_COOKIE')) {
+    define('TFM_UTM_COOKIE', 'tfm_utm');
+}
 
 /** How long attribution survives. 90 days matches the usual paid-media window. */
-define('TFM_UTM_TTL_DAYS', 90);
+if (!defined('TFM_UTM_TTL_DAYS')) {
+    define('TFM_UTM_TTL_DAYS', 90);
+}
 
 /**
  * The parameters carried, mapped to the label the CRM parses.
