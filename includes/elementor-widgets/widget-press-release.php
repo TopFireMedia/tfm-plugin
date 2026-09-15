@@ -1461,14 +1461,30 @@ class Elementor_PRM_Widget extends \Elementor\Widget_Base {
 
         $big = 999999999;
 
-        // Preserve sort parameter in pagination links
-        $base = add_query_arg('prm_sort', $current_sort, str_replace($big, '%#%', esc_url(get_pagenum_link($big))));
-
+        /*
+         * The sort parameter is carried by paginate_links' own `add_args`, NOT by wrapping
+         * the base in add_query_arg().
+         *
+         * add_query_arg() parses the URL it is given, and by that point the base contains the
+         * page placeholder `%#%`. It reads the `#` as the start of a fragment, splits the URL
+         * into path `/press/page/%` and fragment `%/`, and inserts the query string between
+         * them — destroying the placeholder. paginate_links then has nothing to substitute, so
+         * every link came out as the same broken URL:
+         *
+         *   https://example.com/press/page/%?prm_sort=date_desc#%/
+         *
+         * A bare `%` is an invalid percent-escape, so the server answered 400 on every click.
+         * The query itself was always correct — only the links were malformed.
+         *
+         * `format` is deliberately empty: paginate_links only uses it to build the `%_%`
+         * token, and our base already carries `%#%` directly.
+         */
         echo paginate_links(array(
-            'base' => $base,
-            'format' => '?paged=%#%',
+            'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+            'format' => '',
             'current' => $current_page,
             'total' => $total_pages,
+            'add_args' => $current_sort !== '' ? array('prm_sort' => $current_sort) : array(),
             'prev_text' => '&laquo;',
             'next_text' => '&raquo;',
             'mid_size' => 2,

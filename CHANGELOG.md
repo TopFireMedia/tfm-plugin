@@ -4,6 +4,35 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.46.2
+
+**Press Release Grid pagination produced a 400 on every page link.** Reported by Gabe on
+tierraencantadafranchise.com. Every link - 2, 3 and the next arrow - pointed at the same
+malformed URL:
+
+    https://example.com/press/page/%?prm_sort=date_desc#%/
+
+`render_pagination()` built its base by wrapping the page placeholder in `add_query_arg()`:
+
+    add_query_arg('prm_sort', $sort, str_replace($big, '%#%', esc_url(get_pagenum_link($big))))
+
+`add_query_arg()` parses the URL it is handed, and by then the base contains `%#%`. It read the
+`#` as the start of a fragment, split the URL into path `/press/page/%` and fragment `%/`, and
+inserted the query string between them. `paginate_links()` was then given a base with no intact
+placeholder, so every link came out identical - and a bare `%` is an invalid percent-escape, so
+the server answered **400**.
+
+Fixed by carrying the sort parameter in `paginate_links()`' own `add_args`, which exists for
+this and never touches the base. `format` is now empty, since it only builds the `%_%` token and
+the base already carries `%#%` directly.
+
+Worth noting what was *not* broken: the query, the routing and the page detection were all
+correct the whole time. `/press/page/2/` returned the right articles when visited directly. Only
+the generated links were malformed, which is why this looked like "pagination doesn't work"
+rather than a query bug.
+
+---
+
 ## 3.46.1
 
 **UTM lines now use `<br>`, not `<p>` — without which the CRM silently dropped them.** The
