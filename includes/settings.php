@@ -33,6 +33,10 @@ if (!function_exists('tfm_load_settings')) {
             'enable_svg_uploads' => false,
             'enable_form_submissions_access' => false,
             'enable_theme_cleanup' => false,
+            // Suppress the WP 6.8+ speculation-rules block. On by default: Googlebot
+            // reads its URL patterns as URLs and reports them as 404s in Search Console.
+            // See includes/speculative-loading.php.
+            'disable_speculative_loading' => true,
             'enable_font_awesome' => true,
             'enable_phone_formatter' => true,
             'defer_scripts' => false,

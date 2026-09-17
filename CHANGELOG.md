@@ -4,6 +4,54 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.47.0
+
+**Search Console reported seven 404s on a site where nothing was broken.** Google emailed
+salvationwellnessfranchise.com on 16 Sep 2026 - "New reasons prevent pages from being indexed",
+listing Not found (404), Blocked by robots.txt, and Blocked due to other 4xx.
+
+Every URL in the 404 list was a literal pattern string out of WordPress's speculation-rules
+block, which core has printed into every page head since 6.8:
+
+    <script type="speculationrules">
+    {"prefetch":[{"source":"document","where":{"and":[
+      {"href_matches":"/*"},
+      {"not":{"href_matches":["/wp-*.php","/wp-admin/*","/wp-content/uploads/*", ...]}}
+    ]}}]}
+    </script>
+
+Seven of seven matched, down to the site's own theme names (`hello-elementor`,
+`hello-elementor-child`) - which is exactly why the list looked site-specific rather than like
+WordPress-wide behaviour. The eighth pattern, `/wp-admin/*`, landed under "Blocked by robots.txt"
+because robots.txt disallows that path: same artifact, different bucket.
+
+Googlebot is reading URL *patterns* as URLs and failing to fetch things that never existed. The
+sitemap was clean (12/12 returning 200), internal links were clean, and real pages were indexing
+normally.
+
+`includes/speculative-loading.php` returns null from `wp_speculation_rules_configuration`, core's
+own documented switch (6.8+), so no block is printed and there is nothing for a crawler to
+misread. On by default, because every site on the fleet emits this and will generate the same
+alert - verified the same day on salvationwellnessfranchise.com plus the ivy, sal, tgp, lil, ppb
+and phd staging installs, all seven on WP 7.1 and all identical.
+
+The trade is real and worth stating: prefetch-on-hover is a genuine if modest speed feature, and
+this gives it up to silence a report that is cosmetic. Either lever puts it back -
+`add_filter('tfm_disable_speculative_loading', '__return_false')` or clearing
+`disable_speculative_loading` in settings.
+
+**Fix: `TFM_PLUGIN_VERSION` was three releases behind - again.** The constant read `3.45.0` while
+the header read `3.46.2`. This is the same defect 3.45.0 fixed, and it has the same consequences:
+the constant feeds asset cache-busting, the upgrade routine's DB-version gate, and the version
+every install reports through the heartbeat. So fleet reporting had 3.46.0, 3.46.1 and 3.46.2
+installs all claiming to be 3.45.0, and any upgrade routine gated above 3.45.0 never ran.
+
+CI catches this and has caught it every time. It failed on the 3.46.0, 3.46.1 and 3.46.2 pushes
+with `Version header (3.46.2) != TFM_PLUGIN_VERSION (3.45.0)`, and each red run was pushed past.
+The check is not the thing that needs fixing - three consecutive ignored failures is.
+
+---
+
 ## 3.46.2
 
 **Press Release Grid pagination produced a 400 on every page link.** Reported by Gabe on
