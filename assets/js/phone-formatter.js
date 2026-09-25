@@ -49,6 +49,30 @@
         // Remove all non-digit characters
         let cleaned = value.replace(/\D/g, '');
 
+        /*
+         * Drop a single leading country code before truncating.
+         *
+         * Without this, an 11-digit number keeps its leading 1 and slice(0, 10)
+         * cuts the REAL last digit instead: "+1 (555) 123-4567" became
+         * 155-512-3456. The paste handler stripped "+1" itself, but `input` -
+         * which is what fires for typing and for browser/iOS/Android autofill -
+         * did not, so the two entry paths disagreed.
+         *
+         * Safe for US numbers: under the NANP an area code never begins with
+         * 0 or 1, so a leading 1 on a 10- or 11-digit string is always the
+         * country code and never part of the subscriber number.
+         *
+         * The threshold is 10, not 11, because of the keydown guard below: once
+         * the field holds 10 digits it blocks further input, so a typed
+         * "15551234567" never reaches 11 and an 11-only check never fired.
+         * Stripping at 10 turns "1555123456" into a 9-digit "555-123-456",
+         * which leaves room for the final keystroke. Shorter values are left
+         * alone so a half-typed number is not rewritten under the user.
+         */
+        if (cleaned.length >= 10 && cleaned.charAt(0) === '1') {
+            cleaned = cleaned.slice(1);
+        }
+
         // Limit to 10 digits
         cleaned = cleaned.slice(0, 10);
 
@@ -151,10 +175,9 @@
             
             // Remove country code (+1) and any formatting characters that follow it
             // Handles formats like: +1(971)832-9247, +1-971-832-9247, +1 (971) 832-9247, etc.
-            let cleaned = pastedText.replace(/^\+?1[\s\-\(\)\.]*/, '').replace(/\D/g, '');
-            
-            // Format the pasted content
-            this.value = formatPhoneNumber(cleaned);
+            // formatPhoneNumber now strips the country code itself, so paste and
+            // typing/autofill go through exactly one implementation.
+            this.value = formatPhoneNumber(pastedText);
             
             // Set cursor to end
             const length = this.value.length;
@@ -196,7 +219,14 @@
         // Set input attributes for better UX and validation
         input.setAttribute('type', 'tel');
         input.setAttribute('pattern', '[0-9]{3}-[0-9]{3}-[0-9]{4}');
-        input.setAttribute('maxlength', '12'); // 10 digits + 2 dashes
+        /*
+         * No maxlength. Real browser autofill respects it, so a value arriving as
+         * "+1 (555) 123-4567" (17 chars) was truncated by the browser before our
+         * input handler ever saw it. The formatter caps the value at 10 digits
+         * itself, and the pattern attribute below still validates the final
+         * shape, so the attribute only ever cost us digits.
+         */
+        input.removeAttribute('maxlength');
         if (!input.getAttribute('placeholder')) {
             input.setAttribute('placeholder', '___-___-____');
         }

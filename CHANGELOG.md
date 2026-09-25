@@ -4,6 +4,48 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.47.1
+
+**The phone formatter dropped the last digit of any number carrying a country code.**
+
+    "+1 (555) 123-4567"  ->  155-512-3456
+    "1-555-123-4567"     ->  155-512-3456
+    "15551234567"        ->  155-512-3456
+    "555-123-4567"       ->  555-123-4567   (correct)
+
+`formatPhoneNumber()` stripped non-digits and then took `slice(0, 10)`. With a country code
+present that keeps the leading 1 and cuts the real final digit, so the stored number is both
+wrong at the front and short at the back. The paste handler had stripped `+1` itself since
+3.15.0, but `input` - which is what fires for typing and for browser, iOS and Android autofill
+- did not, so the two entry paths disagreed.
+
+Now `formatPhoneNumber()` drops a single leading country code before truncating, and the paste
+handler just calls it, so both routes share one implementation. Safe under the NANP: an area
+code never begins with 0 or 1.
+
+**The threshold is 10 digits, not 11**, which is the part worth remembering. The keydown guard
+blocks further input once the field holds 10 digits, so a *typed* "15551234567" never reaches
+11 and an 11-only check never fires. Stripping at 10 turns "1555123456" into a nine-digit
+"555-123-456", leaving room for the final keystroke. Anything shorter is left alone so a
+half-typed number is not rewritten under the user.
+
+**Also removed `maxlength="12"`.** Real browser autofill respects it, so "+1 (555) 123-4567"
+(17 characters) was truncated by the browser before our handler ever ran - a second, separate
+way to lose the same digit. The formatter caps the value at 10 digits itself and the `pattern`
+attribute still validates the final shape, so the attribute only ever cost us digits.
+
+Verified in headless Chrome against an Elementor tel field: 13 cases covering autofill,
+real keystrokes and paste, plus partial entry and mid-number editing with cursor checks.
+
+**Note for whoever picks up the 3 Natives report:** this is not the cause of the missing digits
+there. Both phone fields on that site are Elementor **Text** fields, not Tel
+(`elementor-field-type-text`, `type="text"`, no name containing "phone" or "tel"), so the
+formatter never attaches - `data-tfm-phone-formatted` is false and no `maxlength` or `pattern`
+is set. Nothing validates those fields at all, which is why a short number can be submitted.
+The fix there is to change the two fields to Tel in Elementor.
+
+---
+
 ## 3.47.0
 
 **Search Console reported seven 404s on a site where nothing was broken.** Google emailed
