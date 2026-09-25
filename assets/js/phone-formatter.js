@@ -40,6 +40,27 @@
     // Track initialized fields to prevent duplicates
     const initializedFields = new WeakSet();
 
+    const US_PATTERN = '[0-9]{3}-[0-9]{3}-[0-9]{4}';
+
+    /**
+     * Is the visitor entering a non-US number?
+     *
+     * A leading "+" is the visitor explicitly declaring a country code. If that
+     * code is anything other than 1, US formatting is simply wrong: this
+     * formatter keeps the first 10 digits, so "+44 20 7946 0958" became
+     * "442-079-4609" - a real UK number turned into nonsense.
+     *
+     * That is not theoretical. Phone fields on at least one client site were
+     * switched from Tel to Text specifically to escape this behaviour, which
+     * left them with no formatting or validation at all and let short numbers
+     * through. Recognising international input means a field can keep its
+     * validation for US numbers without corrupting everyone else's.
+     */
+    function isInternational(value) {
+        const compact = String(value == null ? '' : value).replace(/[\s\-().]/g, '');
+        return compact.charAt(0) === '+' && compact.charAt(1) !== '1';
+    }
+
     /**
      * Format phone number as xxx-xxx-xxxx
      * @param {string} value - Input value
@@ -121,6 +142,15 @@
          * Handle input events - format as user types
          */
         input.addEventListener('input', function(e) {
+            // International entry: leave the value exactly as typed and drop the
+            // US pattern so the browser does not reject a valid foreign number.
+            if (isInternational(this.value)) {
+                this.removeAttribute('pattern');
+                lastValue = this.value;
+                return;
+            }
+            this.setAttribute('pattern', US_PATTERN);
+
             const cursorPosition = this.selectionStart;
             const oldValue = this.value;
             const oldDigits = oldValue.replace(/\D/g, '');
@@ -175,9 +205,15 @@
             
             // Remove country code (+1) and any formatting characters that follow it
             // Handles formats like: +1(971)832-9247, +1-971-832-9247, +1 (971) 832-9247, etc.
-            // formatPhoneNumber now strips the country code itself, so paste and
-            // typing/autofill go through exactly one implementation.
-            this.value = formatPhoneNumber(pastedText);
+            if (isInternational(pastedText)) {
+                this.removeAttribute('pattern');
+                this.value = pastedText.trim();
+            } else {
+                this.setAttribute('pattern', US_PATTERN);
+                // formatPhoneNumber strips the country code itself, so paste and
+                // typing/autofill go through exactly one implementation.
+                this.value = formatPhoneNumber(pastedText);
+            }
             
             // Set cursor to end
             const length = this.value.length;
@@ -188,6 +224,15 @@
          * Handle keydown - prevent invalid input and handle special keys
          */
         input.addEventListener('keydown', function(e) {
+            // A leading "+" starts international entry, so it must be typeable.
+            if (e.key === '+' && this.selectionStart === 0) {
+                return;
+            }
+            // Once the value is international, stop policing it: other countries
+            // use different lengths, spacing and grouping than the NANP.
+            if (isInternational(this.value)) {
+                return;
+            }
             // Allow: backspace, delete, tab, escape, enter
             if ([46, 8, 9, 27, 13].indexOf(e.keyCode) !== -1 ||
                 // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
@@ -218,7 +263,7 @@
 
         // Set input attributes for better UX and validation
         input.setAttribute('type', 'tel');
-        input.setAttribute('pattern', '[0-9]{3}-[0-9]{3}-[0-9]{4}');
+        input.setAttribute('pattern', US_PATTERN);
         /*
          * No maxlength. Real browser autofill respects it, so a value arriving as
          * "+1 (555) 123-4567" (17 chars) was truncated by the browser before our

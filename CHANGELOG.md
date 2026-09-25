@@ -38,10 +38,28 @@ so the browser blocks the submission that previously went through. Also verified
 covering label-only, aria-label-only and already-declared fields, plus email, first name, city
 and "Tell us about your goals" as negative cases: 8 of 8.
 
-**Caveat worth knowing:** the formatter enforces the US 10-digit NANP format. Any field it now
-claims will have international numbers reformatted or truncated. Every TFM site is a US
-franchise site, so this is right today, but a form that needs international numbers should use
-a field the detectors ignore.
+**International numbers are now left alone**, which is the other half of this change and the
+reason the wider detection is safe to ship.
+
+The formatter enforces the US 10-digit NANP format, so before this it destroyed anything else -
+it keeps the first ten digits, so a real UK number came out as nonsense:
+
+    "+44 20 7946 0958"  ->  442-079-4609
+    "+61 2 9374 4000"   ->  612-937-4400
+
+That is very likely why those 3 Natives fields were Text in the first place: Sam's recollection
+is that Tel "was causing problems with formatting" and they switched away from it. Widening
+detection without fixing this would have silently reimposed the exact behaviour someone had
+already worked around, on every site at once.
+
+A leading "+" with any country code other than 1 is now treated as the visitor declaring a
+non-US number. The value is left exactly as typed, the US `pattern` is removed so the browser
+does not reject a valid foreign number, and the keydown guard stops policing length and
+grouping - other countries use neither the NANP's ten digits nor its xxx-xxx-xxxx shape. US
+entry is unchanged, including "+1".
+
+Verified on the live 3 Natives form: "15551234567" gives 555-123-4567 and submits, nine digits
+are blocked, and "+44 20 7946 0958" is preserved and submits. 21 of 21 across the full fixture.
 
 ---
 
