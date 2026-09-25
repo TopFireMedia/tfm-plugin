@@ -394,6 +394,53 @@
     }
 
     /**
+     * Find phone fields that are not declared as phone fields.
+     *
+     * Every detector above keys off something the form builder was told: an
+     * input typed `tel`, an `elementor-field-type-tel` wrapper, or a name
+     * containing "phone"/"tel". A field built as a plain Text field satisfies
+     * none of them - and Elementor names its inputs `form_fields[field_353cb4f]`,
+     * so the name carries no meaning either. The formatter then loads on the page
+     * and silently does nothing.
+     *
+     * That is not hypothetical: on 3nativesacaicafefranchise.com both phone
+     * fields are Text, so nothing formatted them, nothing capped their length and
+     * nothing validated them - which is how a short number reached the CRM.
+     *
+     * So fall back to what the visitor actually sees: the placeholder, the
+     * associated label, or the aria-label. A field a human reads as "Phone" is
+     * treated as one however it was configured, which makes this self-healing
+     * across sites we did not build the forms on.
+     */
+    function detectFieldsByVisibleLabel() {
+        const LOOKS_LIKE_PHONE = /\b(phone|telephone|tel|mobile|cell)\b/i;
+        // Types that can never be a phone field, plus ones we must not touch.
+        const SKIP_TYPES = ['email', 'password', 'number', 'hidden', 'file',
+                            'checkbox', 'radio', 'submit', 'button', 'date', 'url'];
+
+        document.querySelectorAll('input').forEach(input => {
+            if (SKIP_TYPES.indexOf((input.type || '').toLowerCase()) !== -1) return;
+
+            let labelText = '';
+            if (input.id) {
+                const lbl = document.querySelector('label[for="' + CSS.escape(input.id) + '"]');
+                if (lbl) labelText = lbl.textContent || '';
+            }
+            if (!labelText) {
+                const wrapping = input.closest('label');
+                if (wrapping) labelText = wrapping.textContent || '';
+            }
+
+            const haystack = [input.placeholder, labelText, input.getAttribute('aria-label')]
+                .filter(Boolean).join(' ');
+
+            if (LOOKS_LIKE_PHONE.test(haystack)) {
+                initializeFormatter(input);
+            }
+        });
+    }
+
+    /**
      * Initialize legacy phone-us class fields (backward compatibility)
      */
     function detectLegacyFields() {
@@ -430,6 +477,11 @@
 
         // Backward compatibility: Legacy phone-us class (may not be type="tel").
         detectLegacyFields();
+
+        // Last resort: fields a visitor reads as "Phone" but which were never
+        // declared as phone fields. Runs last so declared fields are claimed by
+        // the specific detectors first; initializeFormatter is idempotent.
+        detectFieldsByVisibleLabel();
     }
 
     /**

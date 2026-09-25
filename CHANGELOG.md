@@ -4,6 +4,47 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.48.0
+
+**The phone formatter now recognises phone fields that were never declared as phone fields.**
+
+Every previous detector keyed off something the form builder was told: an input typed `tel`, an
+`elementor-field-type-tel` wrapper, or a name containing "phone"/"tel". A field built as a plain
+**Text** field satisfies none of them - and Elementor names its inputs
+`form_fields[field_353cb4f]`, so the name carries no meaning either. On those forms the script
+loaded on every page load and silently did nothing.
+
+That is how the 3 Natives report happened. Both phone fields on
+3nativesacaicafefranchise.com are Text fields, so nothing formatted them, nothing capped their
+length and nothing validated them. A visitor could type nine digits and submit, and it reached
+the CRM short - which is exactly what Nicole reported. The formatter was sitting on the page
+the whole time.
+
+So detection now falls back to what the visitor actually sees - the placeholder, the associated
+`<label>`, or the `aria-label`. A field a human reads as "Phone" is treated as one however it
+was configured. This makes the behaviour self-healing across sites whose forms we did not build,
+rather than depending on every field having been set up correctly.
+
+Matching is deliberately conservative: whole-word `phone|telephone|tel|mobile|cell`, and never
+on `email`, `password`, `number`, `hidden`, `file`, `checkbox`, `radio`, `submit`, `button`,
+`date` or `url` inputs. The word boundary matters - "Tell us about your goals" is a text field,
+not a telephone, and is left alone. The new pass runs last, so declared fields are still claimed
+by the specific detectors first, and `initializeFormatter` remains idempotent.
+
+Verified against the live 3 Natives page by injecting the built script: both fields went from
+`data-tfm-phone-formatted=false` to formatted `type="tel"` with the validation pattern applied,
+a typed "15551234567" produced 555-123-4567, and a nine-digit entry failed `checkValidity()` -
+so the browser blocks the submission that previously went through. Also verified on a fixture
+covering label-only, aria-label-only and already-declared fields, plus email, first name, city
+and "Tell us about your goals" as negative cases: 8 of 8.
+
+**Caveat worth knowing:** the formatter enforces the US 10-digit NANP format. Any field it now
+claims will have international numbers reformatted or truncated. Every TFM site is a US
+franchise site, so this is right today, but a form that needs international numbers should use
+a field the detectors ignore.
+
+---
+
 ## 3.47.1
 
 **The phone formatter dropped the last digit of any number carrying a country code.**
