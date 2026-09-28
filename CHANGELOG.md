@@ -4,6 +4,33 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.48.1
+
+Fixed phone fields that could not be submitted at all.
+
+3.48.0 validated with `pattern="[0-9]{3}-[0-9]{3}-[0-9]{4}"`, which accepts only the
+exact punctuation this plugin produces. Several sites format their own phone field, and
+on those the field could never satisfy the pattern: the browser refused the form with
+"Please match the requested format" and the site quietly stopped accepting leads.
+Confirmed on Walk-On's and Randy's Donuts, which render `(555) 123-4567`, and on Tierra
+Encantada, which had an Elementor custom-code snippet rewriting the value to
+`+1 (555) 123-456`.
+
+The pattern now validates the *number* rather than our punctuation: an optional country
+code and any arrangement of separators around ten digits. Nine digits still fails, which
+is the check that actually matters. Demanding our own format made the plugin fight every
+site with an opinion about formatting, and the plugin lost silently.
+
+Also fixed the keydown guard, which counted every digit on screen. Where a site renders a
+`+1` prefix, that literal `1` made the guard reach ten digits after the visitor had typed
+only nine, so it blocked the tenth keystroke - the field refused the last digit of the
+visitor's own number. It now strips a leading country code before counting, exactly as
+`formatPhoneNumber` already did. The two paths disagreeing is the same split-brain 3.47.1
+fixed between the paste and input handlers.
+
+Reported by Gabe on Tierra Encantada.
+
+
 ## 3.48.0
 
 **The phone formatter now recognises phone fields that were never declared as phone fields.**

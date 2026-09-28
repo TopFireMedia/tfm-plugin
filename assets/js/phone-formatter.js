@@ -40,7 +40,23 @@
     // Track initialized fields to prevent duplicates
     const initializedFields = new WeakSet();
 
-    const US_PATTERN = '[0-9]{3}-[0-9]{3}-[0-9]{4}';
+    /*
+     * Validate the NUMBER, not our punctuation.
+     *
+     * This was '[0-9]{3}-[0-9]{3}-[0-9]{4}', which only accepts the exact format
+     * this script produces. That holds right up until a site formats its own
+     * phone field, and several do: Tierra Encantada rewrote the value to
+     * "+1 (555) 123-456" via an Elementor custom-code snippet, and Walk-On's and
+     * Randy's Donuts both render "(555) 123-4567". In each case the field could
+     * never satisfy the pattern, so the browser refused the form with "Please
+     * match the requested format" and the site silently stopped taking leads.
+     *
+     * Demanding our own punctuation makes the plugin fight every site that has
+     * an opinion about formatting, and the plugin loses quietly. So accept any
+     * arrangement of separators around a valid NANP number, with an optional
+     * country code. Nine digits still fails, which is the check that matters.
+     */
+    const US_PATTERN = '\\+?1?[^0-9]*[0-9]{3}[^0-9]*[0-9]{3}[^0-9]*[0-9]{4}';
 
     /**
      * Is the visitor entering a non-US number?
@@ -245,8 +261,27 @@
                 return;
             }
             
-            // Check if we already have 10 digits (excluding dashes)
-            const currentDigits = this.value.replace(/\D/g, '');
+            /*
+             * Count the digits the *visitor* entered, not every digit on screen.
+             *
+             * A site can render the field with a country-code prefix - Tierra
+             * Encantada has an Elementor custom-code snippet that rewrites the
+             * value to "+1 (555) 123-456" on every input. That literal "1" is a
+             * digit, so a naive count reaches 10 when only nine were typed and
+             * this guard then blocks the tenth keystroke. The visitor sees a
+             * field that refuses the last digit of their own phone number.
+             *
+             * formatPhoneNumber already strips a leading country code before it
+             * truncates; the guard did not, so the two disagreed - the same
+             * split-brain that 3.47.1 fixed between the paste and input paths.
+             * Normalise identically here, for the same NANP reason: an area code
+             * never begins with 1, so a leading 1 on a 10+ digit string is the
+             * country code and never part of the subscriber number.
+             */
+            let currentDigits = this.value.replace(/\D/g, '');
+            if (currentDigits.length >= 10 && currentDigits.charAt(0) === '1') {
+                currentDigits = currentDigits.slice(1);
+            }
             const isNumericKey = (e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105);
             
             // If we have 10 digits and user is trying to type a number, prevent it
