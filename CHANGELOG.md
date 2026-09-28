@@ -4,6 +4,20 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.48.2
+
+The phone formatter was enqueued with a hardcoded `'1.0.0'` version instead of
+`TFM_PLUGIN_VERSION`, so its URL never changed between releases and caches had no reason
+to refetch it. Walk-On's is behind Cloudflare with a 4-hour TTL and was still serving the
+3.48.0 file with the old strict pattern while the plugin on disk was already 3.48.1 - the
+fix was deployed and simply not reaching visitors. Browsers cache it indefinitely on the
+same basis.
+
+This is why a shipped fix can read as "not fixed" and the plugin still reports itself up
+to date. Every other asset in the plugin already used TFM_PLUGIN_VERSION; the phone
+formatter, the file changed most often, was the only one that could never bust a cache.
+
+
 ## 3.48.1
 
 Fixed phone fields that could not be submitted at all.

@@ -113,11 +113,18 @@ function tfm_enqueue_scripts() {
     // Phone formatter — only needed on pages with phone input fields; can be
     // turned off where forms aren't used (default on to preserve behavior).
     if (!empty($settings['enable_phone_formatter'])) {
+        // Version must be TFM_PLUGIN_VERSION, not a literal. With a frozen
+        // '1.0.0' the URL never changed between releases, so Cloudflare and
+        // browsers kept serving the cached copy: walkonsfranchising.com sat on
+        // the old file behind a 4-hour edge TTL while the plugin on disk was
+        // already updated. That is how a shipped fix reads as "not fixed" and
+        // why the one asset we change most often was the one that could never
+        // bust a cache. Every other asset in this plugin already does this.
         wp_enqueue_script(
             'tfm-phone-formatter',
             TFM_PLUGIN_URL . 'assets/js/phone-formatter.js',
             [],
-            '1.0.0',
+            TFM_PLUGIN_VERSION,
             true
         );
     }
