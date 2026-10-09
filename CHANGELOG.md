@@ -4,6 +4,27 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.49.0
+
+Hides the core REST users endpoints (`/wp/v2/users` and `/wp/v2/users/<id>`) from
+anonymous requests. WordPress exposes these by default for any user with a published
+post, which discloses login usernames to anyone who asks. This is core behaviour rather
+than a misconfiguration, and it is low severity on its own - no passwords, no email
+addresses and no write access - but it turns "guess the username and the password" into
+"guess the password", and it is free to close.
+
+Found during the Randy's Donuts backend audit (ClickUp 86bcf5u2e). A sample of seven
+live fleet sites found three with the endpoint open and three closed, the difference
+being which third-party security plugin happened to be installed. That unevenness is why
+it belongs here rather than per-site.
+
+Logged-in requests are untouched, so the block editor and admin author pickers keep
+working. Anonymous callers get the standard `rest_no_route` 404. Opt out on an
+individual site with the `tfm_harden_rest_users` filter if a headless front end ever
+needs anonymous author data.
+
+---
+
 ## 3.48.2
 
 The phone formatter was enqueued with a hardcoded `'1.0.0'` version instead of
