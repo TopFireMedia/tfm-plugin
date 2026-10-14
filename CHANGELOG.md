@@ -4,6 +4,27 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.49.1
+
+**TFM News widget: say which problem it is.**
+
+The widget only renders news items that carry an Outbound Article URL - a news
+item exists to point at someone else's article, so one with no destination has
+nothing to link to and is skipped. That part is correct and unchanged.
+
+What was wrong was the editor notice. Whether no items existed, or items existed
+with no URL, it said the same thing: "No news items found. Add News Items in TFM
+Custom Functions -> News Settings." On the C2 Education build that sent a
+developer to create news items in the right place and watch them not appear,
+because the item he already had was missing its URL rather than missing.
+
+The notice now counts published items first and names the actual problem.
+
+Frontend behaviour is untouched: an item with no outbound URL still renders
+nothing, and the notice remains editor-only.
+
+---
+
 ## 3.49.0
 
 Hides the core REST users endpoints (`/wp/v2/users` and `/wp/v2/users/<id>`) from

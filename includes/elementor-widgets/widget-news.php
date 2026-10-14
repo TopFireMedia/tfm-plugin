@@ -569,8 +569,38 @@ class Widget_News extends Widget_Base {
 
         if (!$query->have_posts()) {
             if (\Elementor\Plugin::$instance->editor->is_edit_mode()) {
+                /*
+                 * Two different problems used to share one message.
+                 *
+                 * This widget only shows items that carry an Outbound Article URL, because a
+                 * news item exists to point at someone else's article. When items existed but
+                 * none had a URL, the notice still read "No news items found. Add News Items
+                 * in ... News Settings" - which sends the reader off to create a second item
+                 * that will not appear either. That happened on the C2 Education build on
+                 * 2026-10-14: one published item with a featured image, no outbound URL, and
+                 * a developer reasonably concluding the plugin was broken.
+                 *
+                 * So count what actually exists before blaming the absence of it.
+                 */
+                $existing = new \WP_Query([
+                    'post_type'      => 'tfm_news',
+                    'post_status'    => 'publish',
+                    'posts_per_page' => 1,
+                    'fields'         => 'ids',
+                ]);
+                $message = $existing->found_posts > 0
+                    ? sprintf(
+                        _n(
+                            '%d published news item has no Outbound Article URL, so it cannot be shown. Open it and fill in Outbound Article Settings.',
+                            '%d published news items have no Outbound Article URL, so none can be shown. Open each one and fill in Outbound Article Settings.',
+                            $existing->found_posts,
+                            'topfiremedia'
+                        ),
+                        $existing->found_posts
+                    )
+                    : esc_html__('No news items found. Add News Items in TFM Custom Functions → News Settings.', 'topfiremedia');
                 echo '<div style="padding:16px;border:1px dashed #ccc;background:#fafafa;color:#666;">'
-                    . esc_html__('No news items found. Add News Items in TFM Custom Functions → News Settings.', 'topfiremedia')
+                    . esc_html($message)
                     . '</div>';
             }
             return;
