@@ -150,3 +150,62 @@ function tfm_news_register_meta() {
     ]);
 }
 add_action('init', 'tfm_news_register_meta');
+
+/*
+ * Expose the two outbound fields as explicit REST fields.
+ *
+ * register_post_meta above is not enough on its own: WP_REST_Posts_Controller
+ * only attaches the `meta` object for post types that support 'custom-fields',
+ * and tfm_news deliberately does not - adding it would switch on the raw Custom
+ * Fields panel in the editor, which is noise for the people writing news items.
+ * Without that support the meta writes are dropped silently, which is how a
+ * scripted item ends up published with no link.
+ *
+ * register_rest_field sidesteps the supports check and gives the fields clearer
+ * names than the underscore-prefixed meta keys.
+ */
+function tfm_news_register_rest_fields() {
+    if (!tfm_news_is_enabled()) {
+        return;
+    }
+
+    $fields = [
+        'tfm_news_outbound_url' => ['_tfm_news_outbound_url', 'esc_url_raw'],
+        'tfm_news_source_name'  => ['_tfm_news_source_name', 'sanitize_text_field'],
+    ];
+
+    foreach ($fields as $field => $spec) {
+        list($meta_key, $sanitizer) = $spec;
+
+        register_rest_field('tfm_news', $field, [
+            'get_callback' => function ($post) use ($meta_key) {
+                return (string) get_post_meta($post['id'], $meta_key, true);
+            },
+            'update_callback' => function ($value, $post) use ($meta_key, $sanitizer) {
+                if (!current_user_can('edit_post', $post->ID)) {
+                    return new WP_Error(
+                        'rest_cannot_edit',
+                        __('Sorry, you are not allowed to edit this news item.', 'topfiremedia'),
+                        ['status' => 403]
+                    );
+                }
+
+                $value = call_user_func($sanitizer, (string) $value);
+
+                if ($value === '') {
+                    delete_post_meta($post->ID, $meta_key);
+                } else {
+                    update_post_meta($post->ID, $meta_key, $value);
+                }
+
+                return true;
+            },
+            'schema' => [
+                'type'        => 'string',
+                'context'     => ['view', 'edit'],
+                'description' => __('Outbound article settings for this news item.', 'topfiremedia'),
+            ],
+        ]);
+    }
+}
+add_action('rest_api_init', 'tfm_news_register_rest_fields');
