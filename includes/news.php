@@ -114,3 +114,39 @@ function tfm_news_save_metabox($post_id) {
     }
 }
 add_action('save_post_tfm_news', 'tfm_news_save_metabox');
+
+/*
+ * Expose the outbound settings to the REST API.
+ *
+ * The metabox above writes these on save_post, which covers wp-admin but leaves
+ * them unreachable over REST: a tfm_news item created through the API comes back
+ * with meta null and no link, which is the one thing this post type exists for.
+ * Both keys are protected (leading underscore), so WordPress refuses REST writes
+ * unless an explicit auth_callback grants them - the default denies all.
+ */
+function tfm_news_register_meta() {
+    if (!tfm_news_is_enabled()) {
+        return;
+    }
+
+    $auth = function ($allowed, $meta_key, $post_id) {
+        return current_user_can('edit_post', $post_id);
+    };
+
+    register_post_meta('tfm_news', '_tfm_news_outbound_url', [
+        'type'              => 'string',
+        'single'            => true,
+        'show_in_rest'      => true,
+        'sanitize_callback' => 'esc_url_raw',
+        'auth_callback'     => $auth,
+    ]);
+
+    register_post_meta('tfm_news', '_tfm_news_source_name', [
+        'type'              => 'string',
+        'single'            => true,
+        'show_in_rest'      => true,
+        'sanitize_callback' => 'sanitize_text_field',
+        'auth_callback'     => $auth,
+    ]);
+}
+add_action('init', 'tfm_news_register_meta');
