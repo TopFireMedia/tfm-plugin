@@ -4,6 +4,49 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.50.0
+
+**Restore the main landmark, and with it the theme's skip link.**
+
+Hello Elementor prints a skip link to `#content` on every request. The element
+that carries that id, `<main id="content">`, only exists inside the theme's own
+template parts. As soon as Elementor supplies the page - either an Elementor Pro
+Theme Builder template for the single/archive location, or the "Elementor Full
+Width" page template - those template parts never load, and the page ships with
+no main landmark and a skip link pointing at an id that is not there.
+
+Two axe failures, one cause: `landmark-one-main` ("Document does not have a main
+landmark") and `skip-link` ("Skip links are not focusable" - the target is simply
+absent). Found on every page of sal.tfmstaging.com during the 16 Oct 2026 QC
+pass, and it applies to any site on this stack.
+
+New module `includes/a11y-landmarks.php` wraps the content in
+`<main id="content" tabindex="-1">` at four hook points:
+
+- `elementor/theme/before_do_single` / `after_do_single`
+- `elementor/theme/before_do_archive` / `after_do_archive`
+- `elementor/page_templates/header-footer/before_content` / `after_content`
+- `elementor/page_templates/canvas/before_content` / `after_content`
+
+The theme-location hooks fire only after Elementor's empty-queue early return, so
+they run exactly when the theme's own `<main>` has been skipped and not otherwise.
+A once-per-request guard prevents a second landmark. The page-template hooks are
+the common case rather than the exception: on Salvation every page carried
+`_wp_page_template=elementor_header_footer`, so the theme-location fix alone left
+the pages failing while only the blog templates passed.
+
+Deliberately limited to the hello-elementor family, since a theme that calls
+`elementor_theme_do_location()` from inside its own `<main>` would end up with a
+nested landmark. Other themes can opt in with the
+`tfm_a11y_landmarks_supported_theme` filter. No `site-main` class is added: Hello
+scopes its `.site-main` width rules to `body:not([class*=elementor-page-])`, so
+the class is inert on an Elementor page but would start constraining content
+width on a non-Elementor one.
+
+Settings key `enable_a11y_landmarks`, defaulting to on.
+
+---
+
 ## 3.49.1
 
 **TFM News widget: say which problem it is.**
