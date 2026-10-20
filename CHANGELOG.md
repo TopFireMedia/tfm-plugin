@@ -4,6 +4,38 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.51.0
+
+**A blocked video embed now explains itself instead of leaving a hole in the page.**
+
+Consent blocking was working correctly, but one case looked exactly like a broken
+site. A page-builder video widget does not ship an iframe; it ships an empty
+container that its own JavaScript fills once the provider API has loaded. While
+that API is blocked the iframe is never created, so the existing blocked-iframe
+placeholder had nothing to attach to. The visitor got a silent empty box.
+
+Found on the Ivy Kids homepage on 20 Oct 2026, where three YouTube videos sit in
+a carousel. The slides keep their full height whether or not a player loads, so
+the section rendered as 407px of blank space with no banner, no notice and no way
+to consent. It read as a broken slider, and was reported as one.
+
+`markBlockedEmbeds()` now matches those containers directly and fills them with
+the same placeholder and "Allow and load" button a blocked iframe would get.
+Three details worth keeping:
+
+- The provider is resolved from the widget's own `video_type` and tested against
+  the **active** service patterns, so a provider the site has switched off is
+  left alone, and self-hosted video is never touched.
+- The placeholder is only drawn while the container is genuinely empty, so it can
+  never cover a player that did load.
+- It re-runs on `load` as well as `DOMContentLoaded`, because carousel slides can
+  finish rendering after the document is ready.
+
+Granting the category removes the placeholder so the builder can fill the
+container as normal.
+
+---
+
 ## 3.50.0
 
 **Restore the main landmark, and with it the theme's skip link.**

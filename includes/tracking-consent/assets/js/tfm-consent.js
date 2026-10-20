@@ -105,7 +105,7 @@
 		});
 	}
 
-	function addPlaceholder(frame, cat) {
+	function buildPlaceholder(cat) {
 		var holder = document.createElement('div');
 		holder.className = 'tfm-tc-placeholder';
 		var text = document.createElement('p');
@@ -122,7 +122,81 @@
 		});
 		holder.appendChild(text);
 		holder.appendChild(btn);
-		frame.parentNode.insertBefore(holder, frame);
+		return holder;
+	}
+
+	function addPlaceholder(frame, cat) {
+		frame.parentNode.insertBefore(buildPlaceholder(cat), frame);
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * Page-builder video placeholders
+	 *
+	 * A builder's video widget ships an empty container that its own
+	 * JavaScript fills with a provider iframe once the provider API has
+	 * loaded. While that API is blocked the iframe is never created, so
+	 * the blocked-iframe path above has nothing to attach to, and the
+	 * visitor is left looking at blank space - most obviously inside a
+	 * carousel, where the slide keeps its full height and simply appears
+	 * empty. Match those containers directly and give them the same
+	 * placeholder a blocked iframe would get.
+	 * ------------------------------------------------------------------ */
+
+	// Representative provider URLs, tested against the active service
+	// patterns so a service this site has switched off is left alone.
+	var EMBED_PROBES = {
+		youtube: 'https://www.youtube.com/embed/',
+		vimeo: 'https://player.vimeo.com/video/',
+		dailymotion: 'https://www.dailymotion.com/embed/video/',
+		videopress: 'https://videopress.com/embed/'
+	};
+
+	function embedCategory(widget) {
+		var raw = widget.getAttribute('data-settings');
+		if (!raw) { return ''; }
+		var settings;
+		try { settings = JSON.parse(raw); } catch (e) { return ''; }
+		// Self-hosted video is served from this domain and never blocked.
+		var probe = EMBED_PROBES[settings.video_type];
+		return probe ? matchCategory(probe) : '';
+	}
+
+	function findEmbedPlaceholder(target) {
+		for (var i = 0; i < target.children.length; i++) {
+			if (String(target.children[i].className).indexOf('tfm-tc-placeholder') !== -1) {
+				return target.children[i];
+			}
+		}
+		return null;
+	}
+
+	function markBlockedEmbeds(cats) {
+		var widgets = document.querySelectorAll('[data-widget_type^="video."]');
+		Array.prototype.forEach.call(widgets, function (widget) {
+			var target = widget.querySelector('.elementor-video');
+			if (!target) { return; }
+			var cat = embedCategory(widget);
+			if (!cat) { return; }
+
+			var holder = findEmbedPlaceholder(target);
+			if (cats[cat]) {
+				// Granted: clear the way so the builder can fill the container.
+				if (holder) { target.removeChild(holder); }
+				target.classList.remove('tfm-tc-embed-blocked');
+				return;
+			}
+			// Only stand in while the container is genuinely empty; once a
+			// player exists there is nothing left to explain.
+			if (!holder && !target.children.length) {
+				holder = buildPlaceholder(cat);
+				holder.className += ' tfm-tc-placeholder--embed';
+				target.appendChild(holder);
+				// The container is auto-height; its parent is what carries the
+				// embed's aspect ratio. Without this the placeholder sits in the
+				// top of the slot and the rest still reads as blank space.
+				target.classList.add('tfm-tc-embed-blocked');
+			}
+		});
 	}
 
 	function maybeLoadGtm(cats) {
@@ -267,6 +341,7 @@
 		updateConsentMode(cats);
 		unblockScripts(cats);
 		unblockIframes(cats);
+		markBlockedEmbeds(cats);
 		maybeLoadGtm(cats);
 
 		window.dataLayer = window.dataLayer || [];
@@ -472,8 +547,16 @@
 			// additionally get an explicit opt-out receipt for ad categories.
 			if (gpcActive()) { logReceipt(defaultCats(), 'gpc'); }
 			unblockIframes({}); // Draw placeholders over blocked embeds.
+			markBlockedEmbeds({});
 			showBanner();
 		}
+
+		// Builder widgets can finish rendering after DOMContentLoaded - a
+		// carousel slide in particular - so re-check once the page is done.
+		window.addEventListener('load', function () {
+			var settled = readConsent();
+			markBlockedEmbeds(settled ? settled.cats : {});
+		});
 	}
 
 	if (document.readyState === 'loading') {
