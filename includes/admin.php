@@ -275,6 +275,24 @@ function tfm_render_settings_page() {
                             </td>
                         </tr>
                         <tr>
+                            <th>Meta Lead Subject Routing</th>
+                            <td>
+                                <p>
+                                    <label>
+                                        Current subject<br>
+                                        <input type="text" class="regular-text" name="tfm_plugin_settings[elementor_form_meta_subject_from]" value="<?php echo esc_attr(isset($settings['elementor_form_meta_subject_from']) ? $settings['elementor_form_meta_subject_from'] : ''); ?>" placeholder="TopFire Media Web Lead: Example Brand Franchise">
+                                    </label>
+                                </p>
+                                <p>
+                                    <label>
+                                        Meta subject<br>
+                                        <input type="text" class="regular-text" name="tfm_plugin_settings[elementor_form_meta_subject_to]" value="<?php echo esc_attr(isset($settings['elementor_form_meta_subject_to']) ? $settings['elementor_form_meta_subject_to'] : ''); ?>" placeholder="TopFire Media Meta Lead: Example Brand">
+                                    </label>
+                                </p>
+                                <p class="description">A CRM that parses lead source from the email <strong>subject</strong>, such as FranConnect, files paid-social leads under the website source unless the subject changes. When a submission's <code>utm_source</code> is <code>meta</code>, <code>facebook</code>, <code>fb</code>, <code>ig</code> or <code>instagram</code> &mdash; matched case-insensitively &mdash; and the notification's subject is exactly <strong>Current subject</strong>, it is replaced with <strong>Meta subject</strong>. Every other notification is left alone, including internal copies and any form that sends a different subject, so no existing routing changes. UTM values are never altered. Both fields must be filled in, and <strong>Form UTM Attribution</strong> must be on, or this does nothing.</p>
+                            </td>
+                        </tr>
+                        <tr>
                             <th>Defer JavaScript</th>
                             <td>
                                 <label>
@@ -2370,6 +2388,16 @@ function tfm_sanitize_settings($input) {
 
     $sanitized['elementor_acceptance_values'] = isset($input['elementor_acceptance_values']);
     $sanitized['elementor_form_utm'] = isset($input['elementor_form_utm']);
+
+    // Client-specific CRM parsing subjects. Stored as plain text because they
+    // are compared against, and written into, an email subject line — no markup
+    // is ever legitimate here, and a stray tag would break the CRM match.
+    $sanitized['elementor_form_meta_subject_from'] = isset($input['elementor_form_meta_subject_from'])
+        ? sanitize_text_field($input['elementor_form_meta_subject_from'])
+        : '';
+    $sanitized['elementor_form_meta_subject_to'] = isset($input['elementor_form_meta_subject_to'])
+        ? sanitize_text_field($input['elementor_form_meta_subject_to'])
+        : '';
     $sanitized['disable_emojis'] = isset($input['disable_emojis']);
     $sanitized['disable_jquery_migrate'] = isset($input['disable_jquery_migrate']);
     $sanitized['disable_oembeds'] = isset($input['disable_oembeds']);

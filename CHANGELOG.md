@@ -4,6 +4,83 @@ Running record of all work done on the plugin. Newest first.
 
 ---
 
+## 3.52.0
+
+**Paid-social leads can now be filed under the right CRM source.**
+
+FranConnect decides a lead's source from the *subject line* of the notification
+email, not from anything in the body. Each Lead Source Detail is configured with
+a parsing subject and whichever one matches wins. A site that sends one subject
+for every submission therefore files Meta-paid leads and organic leads under the
+same source, however good the UTM data in the email is.
+
+Found on Play Street Museum, where FranConnect already had both classifications
+configured under Internet - "Play Street Museum Website" and "Meta Marketing" -
+and nothing in the CRM was wrong. The website simply never sent the second
+subject, so every Meta lead arrived as a website lead.
+
+New module `elementor-form-subject-routing.php` rewrites `email_subject` when,
+and only when, the outgoing subject is exactly the configured one **and** the
+visitor's stored `utm_source` is `meta`, `facebook`, `fb`, `ig` or `instagram`,
+matched case-insensitively. Configure both subjects at TFM Custom Functions ->
+General -> "Meta Lead Subject Routing". Off until both are filled in, and
+requires "Form UTM Attribution", since without the cookie there is no
+attribution to route on once a visitor leaves the landing page.
+
+Three decisions worth keeping:
+
+- **It matches the exact subject rather than rewriting whatever is there.**
+  Forms usually fire more than one notification - Play Street Museum sends a
+  second copy to web@topfiremedia.com that FranConnect never sees - so rewriting
+  by recipient, or unconditionally, would corrupt the internal copy too.
+- **That also settles the "everything else keeps the existing subject" problem.**
+  The audit found four different subjects in use across the site's forms, so
+  that instruction had no single meaning. Anything that is not the configured
+  subject is passed through untouched, so no existing routing changes by
+  accident.
+- **Medium is deliberately not checked.** An earlier draft required a paid
+  medium, but the confirmed campaign structure tags `utm_medium=Social`, which
+  that test would reject. Source alone decides; add a medium condition per site
+  with the `tfm_form_meta_subject_match` filter if a client's tagging needs it.
+
+UTM values themselves are never modified, so the CRM still receives the original
+campaign data alongside the new subject.
+
+**Form notifications now authenticate instead of merely arriving.**
+
+SPF is checked against the envelope sender, not the `From:` header. PHP's
+`mail()` passes Postfix no `-f`, so every notification from the fleet left with
+an envelope of `root@<server-hostname>.plesk.page` - a domain with no SPF record
+and no relationship to the site. Measured on playstreetfranchise.com:
+
+    From:         ... <noreply@playstreetfranchise.com>
+    Return-Path:  <root@inspiring-sinoussi.67-217-247-95.plesk.page>
+    spf=none      dmarc=fail (p=NONE)
+
+This was invisible only because our domains publish `p=none`, so nothing
+enforces the failure. That is the absence of enforcement, not protection, and a
+likely contributor to the lead copies we lose to Google.
+
+New module `mail-envelope-sender.php` sets `$phpmailer->Sender` on
+`phpmailer_init`, which makes PHPMailer pass `-f`. Verified on the same site:
+`Return-Path` now matches `From`, and the receiving hop records
+`spf=pass spfdomain=playstreetfranchise.com dmarc=pass`.
+
+It only ever vouches for the site's own domain - the envelope is a claim that
+this server may send as that address, so a `From` on someone else's domain is
+left untouched. It also skips any message where `Sender` is already set (SMTP
+plugins know better) or where the mailer is not `mail` (under SMTP the envelope
+comes from the authenticated session). ON by default, since a deliverability fix
+nobody switches on is a fix nobody gets; disable with
+`add_filter( 'tfm_mail_envelope_enabled', '__return_false' )`.
+
+Worth knowing: a `Return-Path` that matches `From` still shows `spf=softfail` at
+a *forwarded* final hop, because the forwarder's IP is what gets checked. Read
+the ARC chain, not the top-level result, when testing through a forwarding
+address.
+
+---
+
 ## 3.51.0
 
 **A blocked video embed now explains itself instead of leaving a hole in the page.**

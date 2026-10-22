@@ -92,6 +92,8 @@ if (!function_exists('tfm_load_settings')) {
             'wp_post_revisions_limit' => 5,
             'elementor_acceptance_values' => false,
             'elementor_form_utm' => false,
+            'elementor_form_meta_subject_from' => '',
+            'elementor_form_meta_subject_to' => '',
             'disable_emojis' => false,
             'disable_jquery_migrate' => false,
             'disable_oembeds' => false
